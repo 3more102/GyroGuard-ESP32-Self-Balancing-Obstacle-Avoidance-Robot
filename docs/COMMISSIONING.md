@@ -21,7 +21,7 @@
 - Sonar is neither a full collision sensor nor a substitute for odometry; side readings are snapshots. Failures may cause collisions. No certified real-time deadline guarantees.
 
 
-### V0.3 software verification and bench diagnostics
+### V0.5 software verification and bench diagnostics
 
 Before supplying motor power, run `bash test/host/run_tests.sh` to check the host C++ controller and sonar behavior, source syntax, and Python telemetry parser. The GitHub Actions workflow also requests a real ESP32 PlatformIO firmware build; its success must be checked in the Actions tab, rather than inferred from a successful commit.
 
@@ -33,6 +33,6 @@ python3 tools/bench_report.py bench.log
 python3 tools/bench_report.py bench.log --strict --json
 ```
 
-Stop the serial monitor with Ctrl+C before reading the file. The report counts samples, motor-arming samples, arm-ready samples (when reported), scan samples, IMU faults, valid directional sonar samples, maximum absolute reported pitch and disarm reasons. With `--strict`, missing telemetry, any recorded IMU fault, or a disarm causes exit code 2. Invalid sonar echoes alone do not indicate a hardware fault (e.g., no echo due to out-of-range targets).
+Stop the serial monitor with Ctrl+C before reading the file. The report counts samples, motor-arming samples, arm-ready samples (when reported), scan samples, IMU faults, valid directional sonar samples, maximum absolute reported pitch and disarm reasons. New V0.5 firmware also reports shortest and longest observed controller start-to-start period within each 200 ms log window (`ctl_min_us`, `ctl_max_us`), control cycles (`ctl_n`), cumulative missed controller deadlines (`ctl_misses`), pitch rate (`rate_dps`) and last commanded normalized motor efforts (`cmd_l`, `cmd_r`). These are diagnostics, not direct velocity or electrical-current measurements. With `--strict`, missing telemetry, any recorded IMU fault, disarm, or a reported missed control deadline causes exit code 2. Invalid sonar echoes alone do not indicate a hardware fault (e.g., no echo due to out-of-range targets).
 
 **Do not treat a clean bench report as proof of reliable balancing or autonomous avoidance.** Record on-hardware results for pitch/motor-sign polarity, ECHO level shifting, watchdog/disarm behavior, response to an object at measured distances and servo physical travel. Keep `GYROGUARD_AUTONOMY=0` until upright stability and navigation behavior have been validated under containment. Wheel encoders/velocity feedback are still not implemented.
