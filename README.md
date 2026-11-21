@@ -1,6 +1,6 @@
 # GyroGuard ESP32 — Self-Balancing Robot + Obstacle Avoidance
 
-**Status: V0.4 software prototype; NO hardware validation, not ready for autonomous deployment.**
+**Status: V0.5 software prototype; NO hardware validation, not ready for autonomous deployment.**
 
 ESP32-WROOM-32 prototype with an MPU6050 IMU, TB6612FNG dual motor driver, two DC geared motors and **one HC-SR04 ultrasonic sensor mounted on a servo**. The design separates the inner balance loop from a conservative navigation policy. Source includes host-runnable controller tests and wiring/commissioning documentation.
 
@@ -20,6 +20,7 @@ The diagram shows the **MPU6050 → ESP32 stabilization loop**, the **single HC-
 - Host tests for controller sign, saturation, sensor failures, servo-scan sequencing, fresh/stale directional snapshots, obstacle turns and hysteresis. V0.3 adds rejection of physically implausible/corrupt sonar ranges and cancels an active turn when side sensing becomes invalid.
 - GitHub Actions CI runs C++ host safety tests, telemetry tests, firmware source syntax checks and the actual PlatformIO ESP32 build. The build publishes firmware artifacts when successful.
 - Offline serial telemetry reporting (`tools/bench_report.py`) summarizes available pitch/range samples, IMU fault flags and disarm events for supervised bench commissioning.
+- **V0.5 diagnostic telemetry** adds windowed 200 Hz control-loop start-to-start periods, cycle counts, cumulative missed deadlines, pitch rate and normalized motor **commands** (not measured speeds). The parser accepts older V0.4 logs.
 
 This is **not TinyML or an AI-trained model**. TinyML is a future optional phase, once real obstacle and motion data have been gathered and a baseline has been validated.
 
@@ -30,6 +31,8 @@ This is **not TinyML or an AI-trained model**. TinyML is a future optional phase
 - Suitable battery/regulator, mechanical chassis, common ground, 5V-to-3.3V ECHO level shifting, electrical protection
 
 See [pinout and electrical warnings](docs/PINOUT.md), then [commissioning checklist](docs/COMMISSIONING.md).
+
+**Power/12 V battery decisions:** [power distribution and voltage limits](docs/POWER_WIRING.md). Record measured hardware safety results in the [V0.5 bench-validation record](docs/BENCH_VALIDATION_RECORD.md) before any floor or autonomous testing.
 
 ## Build and test
 
@@ -61,6 +64,12 @@ By default `GYROGUARD_AUTONOMY=0` in `platformio.ini`. `GYROGUARD_AUTONOMY=1` en
 - Before pressing the arm button, hold the chassis still and upright until telemetry shows `arm_ready=1`.
 - A fall, IMU fault, excessive pitch rate or missed deadline clears the arming readiness timer. An early button press is refused; release and press again once ready.
 - This is a **software-only interlock**. It does not replace an independent motor power cutoff, cradle tests, verified controller signs or motor encoders.
+
+## V0.5 control timing diagnostics
+
+Each 200 ms status line adds `t_ms` (32-bit uptime), `ctl_n` (loop ticks in this reporting window), `ctl_min_us` and `ctl_max_us` (observed start-to-start periods), `ctl_misses` (cumulative periods exceeding the 30,000 µs safety limit), `rate_dps` (pitch angular rate) and `cmd_l` / `cmd_r` (normalized motor commands, not measured velocity or electrical current). A window with no ticks has min/max set to zero.
+
+Summarize with `python3 tools/bench_report.py bench.log --strict --json`. Strict mode treats any reported missed deadline as a fault. Timing summaries describe *captured* telemetry windows, not execution time, continuous jitter or certified real-time behavior. The single servo-mounted HC-SR04 is unchanged, and autonomy remains disabled.
 
 ## Roadmap
 
