@@ -1,6 +1,6 @@
 # GyroGuard ESP32 — Self-Balancing Robot + Obstacle Avoidance
 
-**Status: V0.2 software prototype; NO hardware validation, not ready for autonomous deployment.**
+**Status: V0.3 software prototype; NO hardware validation, not ready for autonomous deployment.**
 
 ESP32-WROOM-32 prototype with an MPU6050 IMU, TB6612FNG dual motor driver, two DC geared motors and **one HC-SR04 ultrasonic sensor mounted on a servo**. The design separates the inner balance loop from a conservative navigation policy. Source includes host-runnable controller tests and wiring/commissioning documentation.
 
@@ -16,7 +16,9 @@ The diagram shows the **MPU6050 → ESP32 stabilization loop**, the **single HC-
 - Two-direction TB6612FNG motor control at 20 kHz PWM, startup-off `STBY`, physical arm/disarm button, tilt/IMU/deadline cutoffs.
 - One interrupt-timed HC-SR04 and PWM servo scanning front/left/right only when a near-front obstacle appears. The 200 Hz balance loop is never blocked waiting for servo movement or ECHO; stale readings invalidate navigation.
 - Conservative rule-based obstacle navigation: stop/turn toward the open side near an obstacle; slow in intermediate range; steer away from close side walls. **Default disabled**, as autonomous motion needs closed-loop wheel velocity feedback.
-- Host tests for controller sign, saturation, sensor failures, servo-scan sequencing, fresh/stale directional snapshots, obstacle turns and hysteresis.
+- Host tests for controller sign, saturation, sensor failures, servo-scan sequencing, fresh/stale directional snapshots, obstacle turns and hysteresis. V0.3 adds rejection of physically implausible/corrupt sonar ranges and cancels an active turn when side sensing becomes invalid.
+- GitHub Actions CI runs C++ host safety tests, telemetry tests, firmware source syntax checks and the actual PlatformIO ESP32 build. The build publishes firmware artifacts when successful.
+- Offline serial telemetry reporting (`tools/bench_report.py`) summarizes available pitch/range samples, IMU fault flags and disarm events for supervised bench commissioning.
 
 This is **not TinyML or an AI-trained model**. TinyML is a future optional phase, once real obstacle and motion data have been gathered and a baseline has been validated.
 
@@ -33,7 +35,8 @@ See [pinout and electrical warnings](docs/PINOUT.md), then [commissioning checkl
 1. Install VS Code + PlatformIO, open this directory.
 2. Upload: `pio run -t upload` (set correct serial port as needed).
 3. View telemetry: `pio device monitor -b 115200`.
-4. Run C++ host unit tests (Linux/macOS with g++): `bash test/host/run_tests.sh`.
+4. Run C++/Python host regression tests (Linux/macOS with g++, Python 3): `bash test/host/run_tests.sh`.
+5. After supervised, wheels-off-ground tests, capture serial diagnostics: `pio device monitor -b 115200 > bench.log` (stop with Ctrl+C). Summarize the log with `python3 tools/bench_report.py bench.log --json`. Use `--strict` to exit with code 2 for missing telemetry, IMU fault samples or recorded disarms. **A report with no recorded faults does not establish safe hardware operation.**
 
 The project pins the **official PlatformIO Espressif32 6.12.0** (Arduino-ESP32 2.0.x) because its `ledcSetup/ledcAttachPin` API is different from Arduino-ESP32 3.x. Do not silently bump the framework without migrating PWM calls.
 
