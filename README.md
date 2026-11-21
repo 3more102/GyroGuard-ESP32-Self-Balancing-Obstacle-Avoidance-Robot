@@ -1,6 +1,6 @@
 # GyroGuard ESP32 — Self-Balancing Robot + Obstacle Avoidance
 
-**Status: V0.5 software prototype; NO hardware validation, not ready for autonomous deployment.**
+**Status: V0.6 safety-commissioning branch (based on V0.5); NO hardware validation, not ready for autonomous deployment.**
 
 ESP32-WROOM-32 prototype with an MPU6050 IMU, TB6612FNG dual motor driver, two DC geared motors and **one HC-SR04 ultrasonic sensor mounted on a servo**. The design separates the inner balance loop from a conservative navigation policy. Source includes host-runnable controller tests and wiring/commissioning documentation.
 
@@ -14,7 +14,7 @@ The diagram shows the **MPU6050 → ESP32 stabilization loop**, the **single HC-
 
 - 200 Hz polled balance loop with MPU6050 gyro offset calibration, complementary pitch filter and angle PD control with optional I term.
 - Manual arming interlock requires **750 ms of continuous healthy IMU readings** within ±6° pitch and ±12°/s pitch rate; invalid samples, excess movement and disarming clear readiness. Telemetry reports `arm_ready`. Gaps over 20 ms between IMU readings reset the 750 ms timer; the arm button is checked after the current control/deadline evaluation. This is an additional software safeguard, not a hardware emergency stop.
-- Two-direction TB6612FNG motor control at 20 kHz PWM, startup-off `STBY`, physical arm/disarm button, tilt/IMU/deadline cutoffs.
+- Two-direction TB6612FNG motor control at 20 kHz PWM, startup-off `STBY`, physical arm/disarm button, tilt/IMU/deadline cutoffs. **Motor arming and active motor commands are now compile-locked OFF in the default firmware.**
 - One interrupt-timed HC-SR04 and PWM servo scanning front/left/right only when a near-front obstacle appears. The 200 Hz balance loop is never blocked waiting for servo movement or ECHO; stale readings invalidate navigation.
 - Conservative rule-based obstacle navigation: stop/turn toward the open side near an obstacle; slow in intermediate range; steer away from close side walls. **Default disabled**, as autonomous motion needs closed-loop wheel velocity feedback.
 - Host tests for controller sign, saturation, sensor failures, servo-scan sequencing, fresh/stale directional snapshots, obstacle turns and hysteresis. V0.3 adds rejection of physically implausible/corrupt sonar ranges and cancels an active turn when side sensing becomes invalid.
@@ -30,14 +30,14 @@ This is **not TinyML or an AI-trained model**. TinyML is a future optional phase
 - MPU6050 (AD0=GND), TB6612FNG, 2 DC geared motors, 1 HC-SR04 + 1 hobby servo (e.g. SG90), arm button
 - Suitable battery/regulator, mechanical chassis, common ground, 5V-to-3.3V ECHO level shifting, electrical protection
 
-See [pinout and electrical warnings](docs/PINOUT.md), then [commissioning checklist](docs/COMMISSIONING.md).
+See [pinout and electrical warnings](docs/PINOUT.md), the [staged motor-lock bench guide](docs/BENCH_MOTOR_LOCK.md), then [commissioning checklist](docs/COMMISSIONING.md).
 
 **Power/12 V battery decisions:** [power distribution and voltage limits](docs/POWER_WIRING.md). Record measured hardware safety results in the [V0.5 bench-validation record](docs/BENCH_VALIDATION_RECORD.md) before any floor or autonomous testing.
 
 ## Build and test
 
 1. Install VS Code + PlatformIO, open this directory.
-2. Upload: `pio run -t upload` (set correct serial port as needed).
+2. Upload: `pio run -t upload` (set correct serial port as needed). By default the firmware is **sensor-only with motor outputs locked**.
 3. View telemetry: `pio device monitor -b 115200`.
 4. Run C++/Python host regression tests (Linux/macOS with g++, Python 3): `bash test/host/run_tests.sh`.
 5. After supervised, wheels-off-ground tests, capture serial diagnostics: `pio device monitor -b 115200 > bench.log` (stop with Ctrl+C). Summarize the log with `python3 tools/bench_report.py bench.log --json`. Use `--strict` to exit with code 2 for missing telemetry, IMU fault samples or recorded disarms. **A report with no recorded faults does not establish safe hardware operation.**
@@ -49,6 +49,8 @@ The project pins the **official PlatformIO Espressif32 6.12.0** (Arduino-ESP32 2
 `MPU6050 -> pitch complementary filter -> 200 Hz angle controller -> TB6612 -> wheels`
 
 `HC-SR04 mounted on servo -> front/left/right scan scheduler -> obstacle policy -> bounded drive/turn intent -> balance controller`
+
+By default **`GYROGUARD_AUTONOMY=0` and `GYROGUARD_MOTOR_ENABLE=0`** in `platformio.ini`. The motor-lock build refuses GPIO27 arming, never calls `motors.set()`, and emits `motor_lock=1` telemetry. With `GYROGUARD_MOTOR_ENABLE=1`, manual motor actuation is possible **only after deliberate rebuild/reflash**, with a physically disconnected VM rail during the initial checks, a restrained wheels-off-ground rig, and an independent motor-power cutoff. This is a software lock, not a certified emergency stop.
 
 By default `GYROGUARD_AUTONOMY=0` in `platformio.ini`. `GYROGUARD_AUTONOMY=1` enables experimental navigation **only after safe hardware validation**. Motor sign, mount orientation, controller gains and motor PWM cap are in `include/Config.h` and `lib/GyroCore/src/GyroCore.h`.
 
@@ -72,7 +74,7 @@ Each 200 ms serial status line still includes `arm`, `imu`, `pitch`, `arm_ready`
 - `t_ms`: ESP32 uptime in milliseconds (32-bit wraparound); `ctl_n`: controller ticks since the last log.
 - `ctl_min_us` / `ctl_max_us`: shortest and longest **observed control start-to-start interval** in that log window, not the C++ computation time; zero when there was no controller tick.
 - `ctl_misses`: cumulative control intervals longer than the configured 30,000 µs safety limit. **Any** observed miss is considered a fault by `--strict`, even if it happened before the current log began.
-- `rate_dps`: last MPU6050 pitch angular rate; `cmd_l` / `cmd_r`: last commanded, normalized motor efforts before individual wheel polarity settings and the TB6612 driver, **not measured motor speeds or PWM voltage**.
+- `rate_dps`: last MPU6050 pitch angular rate; `cmd_l` / `cmd_r`: last commanded, normalized motor efforts before individual wheel polarity settings and the TB6612 driver, **not measured motor speeds or PWM voltage**. In the locked sensor-only build, commands stay zero. `motor_lock=1` indicates that the compile-time output lock is active.
 
 Read the report using `python3 tools/bench_report.py bench.log --strict --json`. The min/max and cycle totals reflect only captured log windows; serial sampling cannot certify jitter, balancing stability, or real-time safety. **Autonomy stays disabled**, and no encoder-based speed feedback is present.
 

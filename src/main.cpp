@@ -13,6 +13,14 @@
 #ifndef GYROGUARD_ENCODERS
 #define GYROGUARD_ENCODERS 0
 #endif
+// Default firmware is sensor-only: TB6612 motor outputs are compile-locked.
+// Deliberately enable only for restrained wheels-off-ground bench tests.
+#ifndef GYROGUARD_MOTOR_ENABLE
+#define GYROGUARD_MOTOR_ENABLE 0
+#endif
+#if GYROGUARD_MOTOR_ENABLE != 0 && GYROGUARD_MOTOR_ENABLE != 1
+#error "GYROGUARD_MOTOR_ENABLE must be 0 or 1"
+#endif
 #if GYROGUARD_ENCODERS
 #include "WheelEncoders.h"
 #include <WheelVelocity.h>
@@ -69,6 +77,9 @@ void checkButton() {
   if (sample != stableButton && now - lastButtonChangeMs >= 40) {
     stableButton = sample;
     if (stableButton == LOW) {
+#if !GYROGUARD_MOTOR_ENABLE
+      Serial.println("ARM REFUSED: motor outputs are compile-locked");
+#else
       if (armed) {
         disarm("button");
       } else if (imuOkay && armingInterlock.ready() &&
@@ -81,6 +92,7 @@ void checkButton() {
       } else {
         Serial.println("ARM REFUSED: IMU fault or not steadily upright for 750 ms");
       }
+#endif
     }
   }
 }
@@ -104,6 +116,8 @@ void setup() {
 #endif
   lastControlUs = micros();
   Serial.printf("Autonomous navigation: %s\n", GYROGUARD_AUTONOMY ? "ENABLED" : "DISABLED");
+  Serial.printf("Motor outputs: %s\n", GYROGUARD_MOTOR_ENABLE ?
+                "ENABLED FOR RESTRAINED TESTING" : "LOCKED (sensor-only)");
 }
 
 void loop() {
@@ -145,11 +159,16 @@ void loop() {
           if (!sonar.scanning()) intent = navigator.update(sonar.readings());
           else navigator.reset();
 #endif
+#if GYROGUARD_MOTOR_ENABLE
           const auto power = controller.update(currentPitch, rate,
                                                intent.drive, intent.turn, dt);
           lastCommandLeft = cfg::MOTOR_SIGN * power.left;
           lastCommandRight = cfg::MOTOR_SIGN * power.right;
           motors.set(lastCommandLeft, lastCommandRight);
+#else
+          // No invocation of MotorDriver::set() in the sensor-only binary.
+          (void)intent;
+#endif
         }
       }
     }
@@ -163,12 +182,12 @@ void loop() {
                          sonar.pointing() == gyroguard::LookDirection::Left ? "left" : "right";
     const uint32_t ctlMin = controlWindowCycles ? controlWindowMinUs : 0u;
     Serial.printf(
-        "arm=%d imu=%d pitch=%.2f arm_ready=%d scan=%d look=%s "
+        "arm=%d imu=%d pitch=%.2f arm_ready=%d motor_lock=%d scan=%d look=%s "
         "front=%s%.1f left=%s%.1f right=%s%.1f "
         "t_ms=%lu ctl_n=%lu ctl_min_us=%lu ctl_max_us=%lu "
         "ctl_misses=%lu rate_dps=%.2f cmd_l=%.3f cmd_r=%.3f\n",
         armed, imuOkay, currentPitch, armingInterlock.ready(),
-        sonar.scanning(), facing,
+        !GYROGUARD_MOTOR_ENABLE, sonar.scanning(), facing,
         d.front.valid ? "" : "?", d.front.cm,
         d.left.valid ? "" : "?", d.left.cm,
         d.right.valid ? "" : "?", d.right.cm,
