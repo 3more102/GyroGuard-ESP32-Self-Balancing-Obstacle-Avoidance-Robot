@@ -122,27 +122,35 @@ int main() {
   assert(scan.readings(0x00000020u).front.valid);
   assert(!scan.readings(0x00000320u).front.valid);
 
-  // Stable posture and low angular velocity are required for manual arming.
+  // A 750ms hold requires continuous 200Hz *fresh* samples.
   ArmingInterlock interlock(6.0f, 12.0f, 750u);
-  assert(!interlock.observe(0.0f, 0.0f, true, 1000u));
-  assert(!interlock.observe(1.0f, 3.0f, true, 1749u));
-  assert(interlock.observe(1.0f, 3.0f, true, 1750u));
+  assert(!interlock.ready());
+  for (uint32_t t = 1000u; t < 1750u; t += 5u) {
+    assert(!interlock.observe(1.0f, 1.0f, true, t));
+  }
+  assert(interlock.observe(1.0f, 1.0f, true, 1750u));
   assert(interlock.ready());
-  assert(!interlock.observe(1.0f, 13.0f, true, 1751u));
-  assert(!interlock.observe(1.0f, 0.0f, true, 1800u));
-  assert(!interlock.observe(7.0f, 0.0f, true, 2400u));
-  assert(!interlock.observe(0.0f, 0.0f, true, 2450u));
-  assert(!interlock.observe(0.0f, 0.0f, false, 3200u));
-  assert(!interlock.observe(NAN, 0.0f, true, 3250u));
-  assert(!interlock.observe(0.0f, INFINITY, true, 3300u));
-  assert(!interlock.observe(0.0f, 0.0f, true, 3500u));
-  assert(interlock.observe(0.0f, 0.0f, true, 4250u));
+  assert(!interlock.observe(1.0f, 13.0f, true, 1755u));
+  assert(!interlock.ready()); // excessive rate resets readiness
+  for (uint32_t t = 2000u; t < 2400u; t += 5u) {
+    assert(!interlock.observe(1.0f, 1.0f, true, t));
+  }
+  assert(!interlock.observe(1.0f, 1.0f, true, 2425u));
+  assert(!interlock.ready()); // >20ms missing samples restart the hold
+  assert(!interlock.observe(NAN, 0.0f, true, 2430u));
+  assert(!interlock.observe(0.0f, INFINITY, true, 2435u));
+  assert(!interlock.observe(0.0f, 0.0f, false, 2440u));
+  assert(!interlock.observe(7.0f, 0.0f, true, 2445u));
+  interlock.reset();
+  for (uint32_t i = 0u; i < 150u; ++i) {
+    assert(!interlock.observe(0.0f, 0.0f, true,
+                              0xFFFFFF00u + i * 5u));
+  }
+  assert(interlock.observe(0.0f, 0.0f, true,
+                            0xFFFFFF00u + 150u * 5u));
+  assert(interlock.ready()); // uint32_t millis() wrap
   interlock.reset();
   assert(!interlock.ready());
-  // Unsigned elapsed time still works when millis() wraps around.
-  assert(!interlock.observe(0.0f, 0.0f, true, 0xFFFFFF00u));
-  assert(!interlock.observe(0.0f, 0.0f, true, 0x000000F0u));
-  assert(interlock.observe(0.0f, 0.0f, true, 0x000001F0u));
 
   std::cout << "PASS: balance/navigation, MPU6050 pitch, arming interlock, servo-scan and stale-data checks\n";
 }
