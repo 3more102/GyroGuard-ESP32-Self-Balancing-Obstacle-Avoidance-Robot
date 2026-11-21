@@ -83,7 +83,6 @@ void setup() {
 
 void loop() {
   sonar.tick(); // non-blocking echoes
-  checkButton();
   const uint32_t now = micros();
   const uint32_t elapsed = now - lastControlUs;
   if (elapsed >= cfg::CONTROL_PERIOD_US) {
@@ -118,13 +117,15 @@ void loop() {
       }
     }
   }
+  // Check the manual arm button only after the latest IMU/deadline check.
+  checkButton();
   if (millis() - lastPrintMs >= 200u) {
     lastPrintMs = millis();
     const auto d = sonar.readings();
     const char *facing = sonar.pointing() == gyroguard::LookDirection::Front ? "front" :
                          sonar.pointing() == gyroguard::LookDirection::Left ? "left" : "right";
-    Serial.printf("arm=%d imu=%d pitch=%.2f scan=%d look=%s front=%s%.1f left=%s%.1f right=%s%.1f\n",
-                  armed, imuOkay, currentPitch, armingInterlock.ready(),
+    Serial.printf("arm=%d armready=%d imu=%d pitch=%.2f scan=%d look=%s front=%s%.1f left=%s%.1f right=%s%.1f\n",
+                  armed, armingInterlock.ready(), imuOkay, currentPitch,
                   sonar.scanning(), facing,
                   d.front.valid ? "" : "?", d.front.cm,
                   d.left.valid ? "" : "?", d.left.cm,
