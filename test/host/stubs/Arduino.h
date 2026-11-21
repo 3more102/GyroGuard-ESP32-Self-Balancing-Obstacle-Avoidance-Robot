@@ -9,12 +9,14 @@
 #define INPUT 0
 #define INPUT_PULLUP 2
 #define CHANGE 3
+#define RISING 4
 uint32_t micros();
 uint32_t millis();
 void pinMode(int, int);
 int digitalRead(int);
 void digitalWrite(int, int);
 void attachInterruptArg(int, void(*)(void*), void*, int);
+int digitalPinToInterrupt(int);
 void noInterrupts();
 void interrupts();
 void delay(unsigned long);
@@ -27,6 +29,7 @@ struct FakeSerial {
  void begin(unsigned long);
  void print(const char*);
  void println(const char*);
+ void println();
  template<class...Args> void printf(const char*, Args...);
 };
 extern FakeSerial Serial;
