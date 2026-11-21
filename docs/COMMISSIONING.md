@@ -19,3 +19,20 @@
 - The single sonar is triggered at least 65 ms apart. Servo angle changes allow at least 220 ms settling before a new ping. Real servo speed, vibrations, mechanical backlash and reflected sonar geometry must be measured.
 - Normally sonar stays centered, measuring forward. On an obstacle under 50 cm, it temporarily scans left -> right -> front and temporarily suspends navigation. A new sweep is rate-limited to 1.5 seconds.
 - Sonar is neither a full collision sensor nor a substitute for odometry; side readings are snapshots. Failures may cause collisions. No certified real-time deadline guarantees.
+
+
+### V0.3 software verification and bench diagnostics
+
+Before supplying motor power, run `bash test/host/run_tests.sh` to check the host C++ controller and sonar behavior, source syntax, and Python telemetry parser. The GitHub Actions workflow also requests a real ESP32 PlatformIO firmware build; its success must be checked in the Actions tab, rather than inferred from a successful commit.
+
+During supported wheels-off-ground tests, record serial output (115200 baud):
+
+```bash
+pio device monitor -b 115200 > bench.log
+python3 tools/bench_report.py bench.log
+python3 tools/bench_report.py bench.log --strict --json
+```
+
+Stop the serial monitor with Ctrl+C before reading the file. The report counts samples, motor-arming samples, scan samples, IMU faults, valid directional sonar samples, maximum absolute reported pitch and disarm reasons. With `--strict`, missing telemetry, any recorded IMU fault, or a disarm causes exit code 2. Invalid sonar echoes alone do not indicate a hardware fault (e.g., no echo due to out-of-range targets).
+
+**Do not treat a clean bench report as proof of reliable balancing or autonomous avoidance.** Record on-hardware results for pitch/motor-sign polarity, ECHO level shifting, watchdog/disarm behavior, response to an object at measured distances and servo physical travel. Keep `GYROGUARD_AUTONOMY=0` until upright stability and navigation behavior have been validated under containment. Wheel encoders/velocity feedback are still not implemented.
