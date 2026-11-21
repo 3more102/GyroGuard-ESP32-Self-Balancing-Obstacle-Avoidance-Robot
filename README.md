@@ -1,6 +1,6 @@
 # GyroGuard ESP32 — Self-Balancing Robot + Obstacle Avoidance
 
-**Status: V0.5 software prototype; NO hardware validation, not ready for autonomous deployment.**
+**Status: V0.6 software prototype (velocity PI preview only); NO hardware validation, not ready for autonomous deployment.**
 
 ESP32-WROOM-32 prototype with an MPU6050 IMU, TB6612FNG dual motor driver, two DC geared motors and **one HC-SR04 ultrasonic sensor mounted on a servo**. The design separates the inner balance loop from a conservative navigation policy. Source includes host-runnable controller tests and wiring/commissioning documentation.
 
@@ -109,3 +109,9 @@ pio device monitor -b 115200
 ```
 
 Use GPIO35/A + GPIO13/B for left, and GPIO36/A + GPIO14/B for right. Signals must be 3.3 V safe; GPIO35/36 are input-only and have **no built-in pull-ups**, so add external 3.3 V pull-ups if your encoder needs them. With motor supply disconnected, spin each wheel by hand to confirm its channel and sign before enabling motor power. Reverse `ENC_LEFT_SIGN` or `ENC_RIGHT_SIGN` only after testing. **Zero ticks with `enc_valid=1` does not prove that an encoder is connected.** This software cannot hold position or control velocity until the encoder electrical interface, counts-per-wheel-revolution and an outer-loop controller have been validated on physical hardware.
+
+## V0.6 — experimental velocity PI preview (not connected to motors)
+
+The new host-testable [wheel velocity PI preview](docs/VELOCITY_PI_PREVIEW.md) handles left/right encoder tick-rate errors with output limits, conditional anti-windup, invalid-rate checks and a fail-closed disable latch. It is **disabled by default**, has **zero default gains**, and is intentionally **not called by firmware** or connected to the motor commands. The 200 Hz balance loop, optional encoder monitoring and default GYROGUARD_AUTONOMY=0 flag remain unchanged.
+
+This is a preparation for future supervised encoder-speed calibration and cascaded balance/velocity control, **not an implemented or physically validated speed controller**. Run the added tests with bash test/host/run_tests.sh before hardware work; see the separate commissioning guide for the measurement gates.
