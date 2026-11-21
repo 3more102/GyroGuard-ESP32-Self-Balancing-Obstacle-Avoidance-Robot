@@ -123,7 +123,7 @@ void loop() {
     const auto d = sonar.readings();
     const char *facing = sonar.pointing() == gyroguard::LookDirection::Front ? "front" :
                          sonar.pointing() == gyroguard::LookDirection::Left ? "left" : "right";
-    Serial.printf("arm=%d imu=%d pitch=%.2f scan=%d look=%s front=%s%.1f left=%s%.1f right=%s%.1f\n",
+    Serial.printf("arm=%d imu=%d pitch=%.2f arm_ready=%d scan=%d look=%s front=%s%.1f left=%s%.1f right=%s%.1f\n",
                   armed, imuOkay, currentPitch, armingInterlock.ready(),
                   sonar.scanning(), facing,
                   d.front.valid ? "" : "?", d.front.cm,
