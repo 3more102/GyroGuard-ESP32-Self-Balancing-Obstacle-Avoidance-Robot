@@ -30,30 +30,53 @@ bool Mpu6050::begin() {
   filtered_ = false;
   return true;
 }
-bool Mpu6050::readRaw(int16_t &ax, int16_t &az, int16_t &gy) {
+bool Mpu6050::readRaw(int16_t &ax, int16_t &ay, int16_t &az, int16_t &gy) {
   uint8_t b[14];
   if (!readRegisters(0x3B, b, sizeof(b))) return false;
   ax = static_cast<int16_t>((static_cast<uint16_t>(b[0]) << 8) | b[1]);
+  ay = static_cast<int16_t>((static_cast<uint16_t>(b[2]) << 8) | b[3]);
   az = static_cast<int16_t>((static_cast<uint16_t>(b[4]) << 8) | b[5]);
   gy = static_cast<int16_t>((static_cast<uint16_t>(b[10]) << 8) | b[11]);
   return true;
 }
 bool Mpu6050::calibrateGyro(unsigned samples) {
   if (samples < 10) return false;
-  double sum = 0.0;
+  double mean = 0.0;
+  double m2 = 0.0;
+  float minPitch = 360.0f;
+  float maxPitch = -360.0f;
   for (unsigned i = 0; i < samples; ++i) {
-    int16_t ax, az, gy;
-    if (!readRaw(ax, az, gy)) return false;
-    sum += static_cast<float>(gy) / 131.0f;
+    int16_t ax, ay, az, gy;
+    if (!readRaw(ax, ay, az, gy)) return false;
+    const float rawRate = static_cast<float>(gy) / 131.0f;
+    if (!gyroguard::imuSamplePlausible(ax / 16384.0f, ay / 16384.0f,
+                                      az / 16384.0f, rawRate)) return false;
+    const float pitch = gyroguard::pitchFromAccelXZ(ax, az);
+    if (pitch < minPitch) minPitch = pitch;
+    if (pitch > maxPitch) maxPitch = pitch;
+    // Welford online variance avoids cancellation from squaring raw samples.
+    const double delta = rawRate - mean;
+    mean += delta / static_cast<double>(i + 1u);
+    m2 += delta * (rawRate - mean);
     delay(4);
   }
-  gyroYBias_ = static_cast<float>(sum / samples);
+  const float stdDev = static_cast<float>(std::sqrt(m2 / samples));
+  if (!gyroguard::gyroCalibrationStationary(maxPitch - minPitch,
+                                             static_cast<float>(mean), stdDev))
+    return false;
+  gyroYBias_ = static_cast<float>(mean);
   filtered_ = false;
   return true;
 }
 bool Mpu6050::read(ImuMeasurement &out, float dtSec) {
-  int16_t ax, az, gy;
-  if (!readRaw(ax, az, gy)) return false;
+  int16_t ax, ay, az, gy;
+  if (!readRaw(ax, ay, az, gy)) return false;
+  // A disconnected/malfunctioning sensor can return a plausible I2C payload
+  // containing impossible physical readings; fail closed on those samples.
+  if (!gyroguard::imuSamplePlausible(ax / 16384.0f, ay / 16384.0f,
+                                    az / 16384.0f,
+                                    static_cast<float>(gy) / 131.0f))
+    return false;
   const float measuredPitch = gyroguard::pitchFromAccelXZ(
       static_cast<float>(ax), static_cast<float>(az));
   const float gyroY = static_cast<float>(gy) / 131.0f - gyroYBias_;
