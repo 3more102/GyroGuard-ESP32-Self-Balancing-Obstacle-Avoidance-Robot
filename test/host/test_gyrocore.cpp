@@ -122,5 +122,27 @@ int main() {
   assert(scan.readings(0x00000020u).front.valid);
   assert(!scan.readings(0x00000320u).front.valid);
 
-  std::cout << "PASS: balance/navigation, MPU6050 pitch, servo-scan and stale-data checks\n";
+  // Stable posture and low angular velocity are required for manual arming.
+  ArmingInterlock interlock(6.0f, 12.0f, 750u);
+  assert(!interlock.observe(0.0f, 0.0f, true, 1000u));
+  assert(!interlock.observe(1.0f, 3.0f, true, 1749u));
+  assert(interlock.observe(1.0f, 3.0f, true, 1750u));
+  assert(interlock.ready());
+  assert(!interlock.observe(1.0f, 13.0f, true, 1751u));
+  assert(!interlock.observe(1.0f, 0.0f, true, 1800u));
+  assert(!interlock.observe(7.0f, 0.0f, true, 2400u));
+  assert(!interlock.observe(0.0f, 0.0f, true, 2450u));
+  assert(!interlock.observe(0.0f, 0.0f, false, 3200u));
+  assert(!interlock.observe(NAN, 0.0f, true, 3250u));
+  assert(!interlock.observe(0.0f, INFINITY, true, 3300u));
+  assert(!interlock.observe(0.0f, 0.0f, true, 3500u));
+  assert(interlock.observe(0.0f, 0.0f, true, 4250u));
+  interlock.reset();
+  assert(!interlock.ready());
+  // Unsigned elapsed time still works when millis() wraps around.
+  assert(!interlock.observe(0.0f, 0.0f, true, 0xFFFFFF00u));
+  assert(!interlock.observe(0.0f, 0.0f, true, 0x000000F0u));
+  assert(interlock.observe(0.0f, 0.0f, true, 0x000001F0u));
+
+  std::cout << "PASS: balance/navigation, MPU6050 pitch, arming interlock, servo-scan and stale-data checks\n";
 }
