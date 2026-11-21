@@ -15,7 +15,7 @@ public:
 private:
   bool readRegisters(uint8_t reg, uint8_t *buf, size_t len);
   bool writeRegister(uint8_t reg, uint8_t value);
-  bool readRaw(int16_t &ax, int16_t &az, int16_t &gy);
+  bool readRaw(int16_t &ax, int16_t &ay, int16_t &az, int16_t &gy);
   float gyroYBias_ = 0.0f;
   float pitchDeg_ = 0.0f;
   bool filtered_ = false;
