@@ -9,6 +9,37 @@ float clampFloat(float value, float low, float high) {
   return value < low ? low : (value > high ? high : value);
 }
 
+ArmingInterlock::ArmingInterlock(float maxTiltDeg, float maxRateDegPerSec,
+                                uint32_t stableDurationMs, uint32_t maxSampleAgeMs)
+    : maxTiltDeg_(maxTiltDeg), maxRateDegPerSec_(maxRateDegPerSec),
+      stableDurationMs_(stableDurationMs), maxSampleAgeMs_(maxSampleAgeMs) {}
+
+void ArmingInterlock::reset() {
+  tracking_ = false;
+  stableSinceMs_ = 0;
+  lastSampleMs_ = 0;
+}
+
+void ArmingInterlock::observe(float pitchDeg, float pitchRateDegPerSec,
+                             uint32_t nowMs) {
+  if (!std::isfinite(pitchDeg) || !std::isfinite(pitchRateDegPerSec) ||
+      std::fabs(pitchDeg) > maxTiltDeg_ ||
+      std::fabs(pitchRateDegPerSec) > maxRateDegPerSec_) {
+    reset();
+    return;
+  }
+  if (!tracking_ || nowMs - lastSampleMs_ > maxSampleAgeMs_) {
+    tracking_ = true;
+    stableSinceMs_ = nowMs;
+  }
+  lastSampleMs_ = nowMs;
+}
+
+bool ArmingInterlock::ready(uint32_t nowMs) const {
+  return tracking_ && nowMs - lastSampleMs_ <= maxSampleAgeMs_ &&
+         nowMs - stableSinceMs_ >= stableDurationMs_;
+}
+
 BalanceController::BalanceController(BalanceGains gains) : gains_(gains) {}
 void BalanceController::reset() { integral_ = 0.0f; }
 

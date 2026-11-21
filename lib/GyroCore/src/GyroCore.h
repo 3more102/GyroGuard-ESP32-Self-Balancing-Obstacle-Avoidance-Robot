@@ -17,6 +17,26 @@ struct BalanceGains {
   float maxPower = 0.70f;
 };
 
+// Arming is permitted only after a continuous sequence of fresh, upright,
+// low-angular-rate IMU samples. This is a software interlock, not a hardware
+// emergency stop. All times use overflow-safe uint32_t differences.
+class ArmingInterlock {
+public:
+  ArmingInterlock(float maxTiltDeg, float maxRateDegPerSec,
+                  uint32_t stableDurationMs, uint32_t maxSampleAgeMs);
+  void reset();
+  void observe(float pitchDeg, float pitchRateDegPerSec, uint32_t nowMs);
+  bool ready(uint32_t nowMs) const;
+private:
+  float maxTiltDeg_;
+  float maxRateDegPerSec_;
+  uint32_t stableDurationMs_;
+  uint32_t maxSampleAgeMs_;
+  bool tracking_ = false;
+  uint32_t stableSinceMs_ = 0;
+  uint32_t lastSampleMs_ = 0;
+};
+
 class BalanceController {
 public:
   explicit BalanceController(BalanceGains gains = {});

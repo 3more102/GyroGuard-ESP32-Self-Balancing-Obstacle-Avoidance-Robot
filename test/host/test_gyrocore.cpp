@@ -122,5 +122,38 @@ int main() {
   assert(scan.readings(0x00000020u).front.valid);
   assert(!scan.readings(0x00000320u).front.valid);
 
-  std::cout << "PASS: balance/navigation, MPU6050 pitch, servo-scan and stale-data checks\n";
+  // Arming requires continuous, fresh, low-tilt, low-rate samples.
+  ArmingInterlock guard(6.0f, 10.0f, 750u, 25u);
+  assert(!guard.ready(0));
+  guard.observe(0.0f, 0.0f, 100u);
+  assert(!guard.ready(850u));  // old sample cannot arm, even after dwell
+  for (uint32_t t = 105; t <= 850; t += 5)
+    guard.observe(0.7f, 0.5f, t);
+  assert(guard.ready(850u));
+  assert(guard.ready(874u));
+  assert(!guard.ready(876u));  // stale after 25 ms
+  guard.observe(7.0f, 0.0f, 880u);
+  assert(!guard.ready(880u));  // too much tilt resets dwell
+  for (uint32_t t = 885; t <= 1640; t += 5)
+    guard.observe(0.7f, 0.5f, t);
+  assert(guard.ready(1640u));
+  guard.observe(0.0f, 11.0f, 1645u);
+  assert(!guard.ready(1645u)); // moving too fast resets dwell
+  for (uint32_t t = 1650; t <= 2400; t += 5)
+    guard.observe(0.7f, 0.5f, t);
+  assert(guard.ready(2400u));
+  guard.observe(NAN, 0.0f, 2405u);
+  assert(!guard.ready(2405u)); // invalid IMU sample resets dwell
+  for (uint32_t t = 2410; t <= 3160; t += 5)
+    guard.observe(0.7f, 0.5f, t);
+  assert(guard.ready(3160u));
+  guard.observe(0.0f, 0.0f, 3200u);
+  assert(!guard.ready(3200u)); // gap between valid samples restarts dwell
+  guard.reset();
+  assert(!guard.ready(3200u));
+  guard.observe(0.0f, 0.0f, 0xFFFFFD00u);
+  for (uint32_t t = 5; t <= 760; t += 5)
+    guard.observe(0.0f, 0.0f, 0xFFFFFD00u + t);
+  assert(guard.ready(0xFFFFFD00u + 760u)); // millis rollover
+  std::cout << "PASS: balance/navigation, sonar hardening, arming safety and stale-data checks\n";
 }
