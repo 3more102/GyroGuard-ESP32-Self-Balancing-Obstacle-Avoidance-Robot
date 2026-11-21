@@ -11,6 +11,12 @@ constexpr int MOTOR_STBY = 23;
 constexpr int ARM_BUTTON = 27; // button to GND, internal pull-up
 constexpr int SONAR_TRIG = 32, SONAR_ECHO = 34;
 constexpr int SERVO_PWM = 33;  // external 5V servo supply; common GND
+// Optional quadrature encoder A/B inputs; use only 3.3 V-compatible signals.
+// GPIO35/39 are input-only without internal pull-ups.
+constexpr int ENCODER_LEFT_A = 35, ENCODER_LEFT_B = 14;
+constexpr int ENCODER_RIGHT_A = 39, ENCODER_RIGHT_B = 13;
+// Verify direction with manual wheel rotation, NOT under motor power.
+constexpr int ENCODER_LEFT_SIGN = 1, ENCODER_RIGHT_SIGN = 1;
 constexpr int SERVO_FRONT_DEG = 90;
 constexpr int SERVO_LEFT_DEG  = 135; // swap left/right if bracket reversed
 constexpr int SERVO_RIGHT_DEG = 45;
