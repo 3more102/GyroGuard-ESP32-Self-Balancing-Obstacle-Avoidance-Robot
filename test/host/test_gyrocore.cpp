@@ -122,5 +122,38 @@ int main() {
   assert(scan.readings(0x00000020u).front.valid);
   assert(!scan.readings(0x00000320u).front.valid);
 
+  // Stationary calibration should accept a constant gyro offset and reject
+  // movement, wrong orientation, invalid samples and unstable gyro noise.
+  GyroCalibrationGuard stationary;
+  float estimatedBias = 0.0f;
+  assert(!stationary.bias(estimatedBias)); // too few samples
+  for (int n = 0; n < 300; ++n)
+    assert(stationary.observe(0.0f, 0.0f, 1.0f, 0.0f,
+                             0.75f + (n % 2 ? 0.05f : -0.05f), 0.0f));
+  assert(stationary.bias(estimatedBias));
+  assert(std::fabs(estimatedBias - 0.75f) < 0.01f);
+  GyroCalibrationGuard tilted;
+  assert(!tilted.observe(-std::sin(tenDegrees), 0.0f,
+                         std::cos(tenDegrees), 0, 0, 0));
+  assert(!tilted.bias(estimatedBias));
+  GyroCalibrationGuard rolled;
+  assert(!rolled.observe(0, 0.2f, std::sqrt(0.96f), 0, 0, 0));
+  GyroCalibrationGuard accelerated;
+  assert(!accelerated.observe(0, 0, 1.4f, 0, 0, 0));
+  GyroCalibrationGuard spinning;
+  assert(!spinning.observe(0, 0, 1, 0, 0, 5.5f));
+  GyroCalibrationGuard invalid;
+  assert(!invalid.observe(NAN, 0, 1, 0, 0, 0));
+  assert(!invalid.observe(0, 0, 1, 0, 0, 0)); // latched failure
+  GyroCalibrationGuard changingPitch;
+  assert(changingPitch.observe(0, 0, 1, 0, 0, 0));
+  const float fourDegrees = 4.0f * 3.14159265f / 180.0f;
+  assert(!changingPitch.observe(-std::sin(fourDegrees), 0,
+                                std::cos(fourDegrees), 0, 0, 0));
+  GyroCalibrationGuard noisy;
+  for (int n = 0; n < 100; ++n)
+    assert(noisy.observe(0, 0, 1, 0, (n % 2) ? 2.0f : -2.0f, 0));
+  assert(!noisy.bias(estimatedBias)); // high variance despite bounded peaks
+
   std::cout << "PASS: balance/navigation, MPU6050 pitch, servo-scan and stale-data checks\n";
 }

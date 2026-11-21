@@ -38,6 +38,42 @@ MotorCommand BalanceController::update(float pitchDeg, float pitchRateDegPerSec,
 }
 
 
+bool GyroCalibrationGuard::observe(float axG, float ayG, float azG,
+                                   float gxDps, float gyDps, float gzDps) {
+  if (failed_) return false;
+  const bool finite = std::isfinite(axG) && std::isfinite(ayG) &&
+                      std::isfinite(azG) && std::isfinite(gxDps) &&
+                      std::isfinite(gyDps) && std::isfinite(gzDps);
+  const float gravitySquared = axG * axG + ayG * ayG + azG * azG;
+  const float pitch = finite ? pitchFromAccelXZ(axG, azG) : 0.0f;
+  // Broad 1 g tolerance accounts for breakout calibration, but rejects
+  // incorrect orientation, acceleration and non-stationary readings.
+  if (!finite || !std::isfinite(gravitySquared) ||
+      gravitySquared < 0.85f * 0.85f ||
+      gravitySquared > 1.15f * 1.15f ||
+      std::fabs(ayG) > 0.15f || std::fabs(pitch) > 6.0f ||
+      std::fabs(gxDps) > 5.0f || std::fabs(gyDps) > 5.0f ||
+      std::fabs(gzDps) > 5.0f ||
+      (samples_ > 0 && std::fabs(pitch - referencePitchDeg_) > 2.0f)) {
+    failed_ = true;
+    return false;
+  }
+  if (samples_ == 0) referencePitchDeg_ = pitch;
+  ++samples_;
+  const float difference = gyDps - meanGyroY_;
+  meanGyroY_ += difference / static_cast<float>(samples_);
+  squaredDiffGyroY_ += difference * (gyDps - meanGyroY_);
+  return true;
+}
+
+bool GyroCalibrationGuard::bias(float &gyroYBiasDps) const {
+  if (failed_ || samples_ < 30 ||
+      squaredDiffGyroY_ / static_cast<float>(samples_) > 1.5f * 1.5f ||
+      !std::isfinite(meanGyroY_)) return false;
+  gyroYBiasDps = meanGyroY_;
+  return true;
+}
+
 void ServoScanScheduler::reset() {
   front_ = {};
   left_ = {};

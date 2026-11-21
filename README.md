@@ -12,11 +12,11 @@ The diagram shows the **MPU6050 → ESP32 stabilization loop**, the **single HC-
 
 ## Implemented
 
-- 200 Hz polled balance loop with MPU6050 gyro offset calibration, complementary pitch filter and angle PD control with optional I term.
+- 200 Hz polled balance loop with **motion-rejecting, upright-only MPU6050 gyro calibration**, complementary pitch filter and angle PD control with optional I term.
 - Two-direction TB6612FNG motor control at 20 kHz PWM, startup-off `STBY`, physical arm/disarm button, tilt/IMU/deadline cutoffs.
 - One interrupt-timed HC-SR04 and PWM servo scanning front/left/right only when a near-front obstacle appears. The 200 Hz balance loop is never blocked waiting for servo movement or ECHO; stale readings invalidate navigation.
 - Conservative rule-based obstacle navigation: stop/turn toward the open side near an obstacle; slow in intermediate range; steer away from close side walls. **Default disabled**, as autonomous motion needs closed-loop wheel velocity feedback.
-- Host tests for controller sign, saturation, sensor failures, servo-scan sequencing, fresh/stale directional snapshots, obstacle turns and hysteresis.
+- Host tests for controller sign, saturation, sensor failures, servo-scan sequencing, fresh/stale directional snapshots, obstacle turns, hysteresis and unsafe IMU startup calibration.
 
 This is **not TinyML or an AI-trained model**. TinyML is a future optional phase, once real obstacle and motion data have been gathered and a baseline has been validated.
 
