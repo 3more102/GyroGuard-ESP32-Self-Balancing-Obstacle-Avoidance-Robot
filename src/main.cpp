@@ -5,6 +5,10 @@
 #include "Mpu6050.h"
 #include "MotorDriver.h"
 #include "Ultrasonic.h"
+#if GYROGUARD_ENCODERS
+#include "WheelEncoders.h"
+#include <EncoderTickRate.h>
+#endif
 #include <GyroCore.h>
 
 #ifndef GYROGUARD_AUTONOMY
@@ -14,6 +18,12 @@
 Mpu6050 imu;
 MotorDriver motors;
 UltrasonicScanner sonar;
+#if GYROGUARD_ENCODERS
+WheelEncoders encoders;
+gyroguard::EncoderTickRateEstimator encoderEstimator;
+gyroguard::EncoderTickRates encoderRate;
+uint32_t lastEncoderSampleMs = 0;
+#endif
 gyroguard::BalanceController controller;
 gyroguard::ObstacleNavigator navigator;
 gyroguard::ArmingInterlock armingInterlock(
@@ -77,12 +87,27 @@ void setup() {
   imuOkay = imu.begin() && imu.calibrateGyro();
   if (!imuOkay) Serial.println("MPU6050 initialization/calibration failed");
   sonar.begin();
+#if GYROGUARD_ENCODERS
+  encoders.begin();
+  encoderEstimator.reset();
+  lastEncoderSampleMs = millis();
+  Serial.println("Wheel encoders: telemetry only; no velocity PID");
+#endif
   lastControlUs = micros();
   Serial.printf("Autonomous navigation: %s\n", GYROGUARD_AUTONOMY ? "ENABLED" : "DISABLED");
 }
 
 void loop() {
   sonar.tick(); // non-blocking echoes
+#if GYROGUARD_ENCODERS
+  // Independent 10 Hz tick-rate diagnostics; never alter motor commands.
+  const uint32_t encoderNowMs = millis();
+  if (encoderNowMs - lastEncoderSampleMs >= 100u) {
+    lastEncoderSampleMs = encoderNowMs;
+    const auto ticks = encoders.snapshot();
+    encoderRate = encoderEstimator.observe(ticks.left, ticks.right, encoderNowMs);
+  }
+#endif
   const uint32_t now = micros();
   const uint32_t elapsed = now - lastControlUs;
   if (elapsed >= cfg::CONTROL_PERIOD_US) {
@@ -124,11 +149,18 @@ void loop() {
     const auto d = sonar.readings();
     const char *facing = sonar.pointing() == gyroguard::LookDirection::Front ? "front" :
                          sonar.pointing() == gyroguard::LookDirection::Left ? "left" : "right";
-    Serial.printf("arm=%d imu=%d pitch=%.2f arm_ready=%d scan=%d look=%s front=%s%.1f left=%s%.1f right=%s%.1f\n",
+    Serial.printf("arm=%d imu=%d pitch=%.2f arm_ready=%d scan=%d look=%s front=%s%.1f left=%s%.1f right=%s%.1f",
                   armed, imuOkay, currentPitch, armingInterlock.ready(),
                   sonar.scanning(), facing,
                   d.front.valid ? "" : "?", d.front.cm,
                   d.left.valid ? "" : "?", d.left.cm,
                   d.right.valid ? "" : "?", d.right.cm);
+#if GYROGUARD_ENCODERS
+    const auto ticks = encoders.snapshot();
+    Serial.printf(" enc_left=%ld enc_right=%ld enc_l_tps=%.1f enc_r_tps=%.1f enc_valid=%d",
+                  static_cast<long>(ticks.left), static_cast<long>(ticks.right),
+                  encoderRate.left, encoderRate.right, encoderRate.valid);
+#endif
+    Serial.println();
   }
 }
