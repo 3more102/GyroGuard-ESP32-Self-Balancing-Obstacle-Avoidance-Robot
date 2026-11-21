@@ -8,6 +8,26 @@ int main() {
   const float tenDegrees = 10.0f * 3.14159265f / 180.0f;
   assert(std::fabs(pitchFromAccelXZ(-std::sin(tenDegrees), std::cos(tenDegrees)) - 10.0f) < 0.001f);
   assert(std::fabs(pitchFromAccelXZ(+std::sin(tenDegrees), std::cos(tenDegrees)) + 10.0f) < 0.001f);
+  // IMU sanity: nominal gravity and modest gyro rate are accepted.
+  assert(imuSamplePlausible(0.0f, 0.0f, 1.0f, 0.0f));
+  assert(imuSamplePlausible(0.18f, 0.04f, 0.98f, 22.0f));
+  // All-zero/stuck data, free-fall, overload, excessive roll, rail clipping
+  // and non-finite values must not reach the balance controller.
+  assert(!imuSamplePlausible(0.0f, 0.0f, 0.0f, 0.0f));
+  assert(!imuSamplePlausible(0.0f, 0.0f, 0.5f, 0.0f));
+  assert(!imuSamplePlausible(0.0f, 0.0f, 1.6f, 0.0f));
+  assert(!imuSamplePlausible(0.0f, 0.9f, 0.43f, 0.0f));
+  assert(!imuSamplePlausible(0.0f, 0.0f, 1.0f, 250.0f));
+  assert(!imuSamplePlausible(NAN, 0.0f, 1.0f, 0.0f));
+  assert(!imuSamplePlausible(0.0f, INFINITY, 1.0f, 0.0f));
+  assert(!imuSamplePlausible(0.0f, 0.0f, 1.0f, -INFINITY));
+  // Stationarity is required before adopting the gyro calibration bias.
+  assert(gyroCalibrationStationary(0.5f, 0.2f, 0.8f));
+  assert(!gyroCalibrationStationary(5.0f, 0.2f, 0.8f));
+  assert(!gyroCalibrationStationary(0.5f, 8.0f, 0.8f));
+  assert(!gyroCalibrationStationary(0.5f, 0.2f, 3.0f));
+  assert(!gyroCalibrationStationary(NAN, 0.2f, 0.8f));
+
   BalanceController c;
   auto u = c.update(0.0f, 0.0f, 0.0f, 0.0f, 0.005f);
   assert(u.left == 0.0f && u.right == 0.0f);
