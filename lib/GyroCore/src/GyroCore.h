@@ -2,6 +2,19 @@
 #include <cstdint>
 
 namespace gyroguard {
+// Debounce and require a stable release before any new press can toggle arming.
+// A button held down throughout startup never generates an arm event.
+class ArmButtonGuard {
+public:
+  bool update(bool pressed, uint32_t nowMs);
+private:
+  bool initialized_ = false;
+  bool rawPressed_ = false;
+  bool stablePressed_ = false;
+  bool released_ = false;
+  uint32_t lastChangeMs_ = 0;
+};
+
 struct MotorCommand {
   float left = 0.0f;     // normalized -1 .. +1
   float right = 0.0f;
