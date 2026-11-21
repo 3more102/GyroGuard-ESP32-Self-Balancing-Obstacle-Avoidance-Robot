@@ -20,13 +20,15 @@ The numerical limits in the example struct are *software envelopes*, not values 
 ## Encoder calibration: required before integration
 
 1. Keep the **motor power physically disconnected**. Wire the two encoders according to [PINOUT.md](PINOUT.md), with 3.3 V-safe signals and external pull-ups where required.
-2. Build and upload the optional encoder-monitor PlatformIO environment. In a safe cradle, rotate the **left wheel forward exactly one full output-shaft revolution by hand** and examine encoder direction and tick rate during motion. Do the same for right. The current firmware prints rates, not accumulated counters; therefore measuring exact ticks per revolution requires a future raw-count telemetry addition or a separate instrument. **Do not infer CPR from rate alone.**
-3. Verify positive forward tick rate and opposite sign for reverse by hand-turning each wheel. Change encoder sign settings in Config.h only after measurement.
+2. Build and upload the optional encoder-monitor environment (pio run -e esp32dev-encoder-monitor). With motor power disconnected, note the starting enc_l_u32 / enc_r_u32 counts, rotate **one output wheel forward exactly one complete revolution by hand**, and note its ending count once stationary. Repeat for the other wheel. These raw counts are 32-bit unsigned modular totals; calculate the short-rotation signed delta as (end - start + 2^31) mod 2^32 - 2^31. The magnitude of that measured delta is **ticks per output-wheel revolution** in the project's 2× A-edge scheme. Never infer CPR from tick rate alone.
+3. Verify positive forward tick rate and opposite sign for reverse by hand-turning each wheel. A present enc_valid=1 flag means the estimator has a valid time window, **not** that an encoder is electrically connected. Change encoder sign settings in Config.h only after measurement.
 4. Record actual output-shaft ticks per wheel revolution, wheel radius, gear ratio, encoder signal quality and 3.3 V interface in the bench record. With this project's 2× A-edge counting scheme, do not assume a motor-shaft PPR specification equals output-wheel ticks per revolution.
 5. Independently validate motor direction, IMU sign, physical cutoff, stability, balance gains, power distribution and timing before floor tests. Only after these pass should the preview be considered for a bounded, supervised experimental outer loop.
 
 ## Software-only check
 
 Run: bash test/host/run_tests.sh
+
+Read cumulative encoder counters from the monitor only in the encoder-enabled build; the default build does not activate encoder interrupts.
 
 The tests validate code behavior on a host machine. They do not validate encoder electrical wiring, balancing, collision avoidance or a closed-loop robot. Keep autonomous movement disabled until physical safety gates pass.
