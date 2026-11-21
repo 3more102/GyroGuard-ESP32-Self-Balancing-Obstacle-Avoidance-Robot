@@ -19,6 +19,9 @@
 WheelEncoders wheelEncoders;
 gyroguard::WheelVelocityEstimator wheelVelocity;
 gyroguard::WheelRate latestWheelRate;
+// Unsigned modular cumulative edge counts for hand-rotation CPR calibration.
+uint32_t latestLeftEncoderCount = 0;
+uint32_t latestRightEncoderCount = 0;
 #endif
 
 Mpu6050 imu;
@@ -118,6 +121,8 @@ void loop() {
 #if GYROGUARD_ENCODERS
     uint32_t leftTicks = 0, rightTicks = 0;
     wheelEncoders.snapshot(leftTicks, rightTicks);
+    latestLeftEncoderCount = leftTicks;
+    latestRightEncoderCount = rightTicks;
     latestWheelRate = wheelVelocity.update(leftTicks, rightTicks, now);
 #endif
     if (elapsed > cfg::MAX_CONTROL_GAP_US) {
@@ -182,9 +187,12 @@ void loop() {
     controlWindowMinUs = UINT32_MAX;
     controlWindowMaxUs = 0;
 #if GYROGUARD_ENCODERS
-    Serial.printf("enc_valid=%d left_tps=%.1f right_tps=%.1f (diagnostic)\n",
+    Serial.printf("enc_valid=%d left_tps=%.1f right_tps=%.1f "
+                  "enc_l_u32=%lu enc_r_u32=%lu (diagnostic)\n",
                   latestWheelRate.valid, latestWheelRate.leftTicksPerSec,
-                  latestWheelRate.rightTicksPerSec);
+                  latestWheelRate.rightTicksPerSec,
+                  static_cast<unsigned long>(latestLeftEncoderCount),
+                  static_cast<unsigned long>(latestRightEncoderCount));
 #endif
   }
 }
