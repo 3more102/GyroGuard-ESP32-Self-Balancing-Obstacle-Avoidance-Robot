@@ -1,6 +1,6 @@
 # ESP32 GyroGuard hardware commissioning
 
-**Software prototype only — not verified on hardware.** Use a cradle with wheels off the floor. Disconnect motor power during wiring.
+**Software prototype only — not verified on hardware.** Use a cradle with wheels off the floor. Disconnect motor power during wiring. The default build has `GYROGUARD_MOTOR_ENABLE=0`: motor arming is locked out while IMU and servo-sonar sensors can be tested.
 
 1. Confirm classic ESP32-WROOM-32 dev board, MPU6050, TB6612FNG, **one HC-SR04 on a servo** (e.g. SG90), 2 motors, button.
 2. Verify voltage shift on the **single sonar ECHO** and a sufficiently rated **external regulated 5 V servo supply**, all grounds common. Never feed 5 V ECHO into the ESP32.
@@ -8,10 +8,10 @@
 4. Run pio run -t upload; start pio device monitor -b 115200. On boot all motors remain disabled and the MPU6050 calibrates while stationary.
 5. Confirm imu=1, pitch sign (leaning forward positive), and serial sonar look= positions. A near obstacle in front should trigger a left/right sweep and a return to front; check the measured sides match physical directions.
 6. With motor power isolated, deliberately unplug ECHO or move an object out of range; the sonar must show invalid ? readings, and navigation command should not move forward.
-7. With chassis in a mechanical cradle and servo clear of hands, hold the robot within ±6° of upright with pitch rate within ±12°/s continuously for at least 750 ms (check `arm_ready=1` in telemetry). Then press GPIO27 button to arm. If the button was pressed too early, release and press it again after readiness is reached. Sampling gaps over 20 ms interrupt the 750 ms stability hold. Confirm that a positive forward pitch makes both wheels drive forward. Set PITCH_SIGN, MOTOR_SIGN, and each wheel sign accordingly.
+7. Only after completing sensor-only verification, with the chassis mechanically restrained, an independent VM power cutoff, and `GYROGUARD_MOTOR_ENABLE=1` deliberately set and reflashed: release GPIO27 at boot and wait at least 40 ms, then with chassis in a mechanical cradle and servo clear of hands, hold the robot within ±6° of upright with pitch rate within ±12°/s continuously for at least 750 ms (check `arm_ready=1` in telemetry). Then press GPIO27 button to arm. If the button was held at boot or pressed too early, release it for at least 40 ms and then press again for at least 40 ms after readiness is reached. Sampling gaps over 20 ms interrupt the 750 ms stability hold. Confirm that a positive forward pitch makes both wheels drive forward. Set PITCH_SIGN, MOTOR_SIGN, and each wheel sign accordingly.
 8. Check disarming on button press, lost IMU data, missed controller deadline, or tilt >32°. Add an independent hardware power cutoff before unrestricted testing.
 9. Tune balancing **before enabling autonomy**. PID gains are placeholders and no wheel encoders/odometry are implemented. During servo sweep, motion intent is set to zero. This does not mean the robot is guaranteed to remain in place.
-10. Autonomous mode is intentionally compiled out (GYROGUARD_AUTONOMY=0). Only enable after confirming stable closed-loop balance, wiring, motor polarity, turn sign and clearance under controlled conditions.
+10. Autonomous mode is intentionally compiled out (GYROGUARD_AUTONOMY=0); motor output is also compile-locked by default (GYROGUARD_MOTOR_ENABLE=0). Only enable after confirming stable closed-loop balance, wiring, motor polarity, turn sign and clearance under controlled conditions.
 
 ### Timing / limitations
 
