@@ -10,6 +10,9 @@ class BenchReportTests(unittest.TestCase):
     def test_valid_and_missing_echo(self):
         sample = parse_sample("arm=1 imu=1 pitch=-3.20 scan=1 look=left front=?0.0 left=25.0 right=?0.0")
         self.assertTrue(sample["armed"])
+        self.assertIsNone(sample["arm_ready"])  # older telemetry remains parseable
+        ready = parse_sample("arm=0 imu=1 pitch=0.1 arm_ready=1 scan=0 look=front front=75 left=?0.0 right=?0.0")
+        self.assertTrue(ready["arm_ready"])
         self.assertEqual(sample["ranges"]["left"], 25.0)
         self.assertIsNone(sample["ranges"]["front"])
 
@@ -35,6 +38,7 @@ class BenchReportTests(unittest.TestCase):
         self.assertEqual(summary["max_abs_pitch_deg"], 7.25)
         self.assertEqual(summary["valid_range_samples"], {"front": 2, "left": 1, "right": 1})
         self.assertEqual(summary["disarm_reasons"], {"IMU communication lost": 1})
+        self.assertEqual(summary["arm_ready_samples"], 0)
         self.assertTrue(has_faults(summary))
         self.assertTrue(has_faults(analyze_lines([])))
         self.assertFalse(has_faults(analyze_lines(lines[:1])))
