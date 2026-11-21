@@ -23,6 +23,15 @@ int main() {
   assert(u.left == 0 && u.right == 0); // invalid samples = zero output
   u = c.update(2.0f, 0.0f, 0.0f, 0.0f, 0.100f);
   assert(u.left == 0 && u.right == 0); // missed deadline
+  // Fault injection: corrupt navigation commands must fail closed.
+  for (float bad : {NAN, INFINITY, -INFINITY}) {
+    u = c.update(0.0f, 0.0f, bad, 0.0f, 0.005f);
+    assert(u.left == 0.0f && u.right == 0.0f);
+    u = c.update(0.0f, 0.0f, 0.0f, bad, 0.005f);
+    assert(u.left == 0.0f && u.right == 0.0f);
+  }
+  u = c.update(0.0f, 0.0f, 0.0f, 0.0f, 0.005f);
+  assert(u.left == 0.0f && u.right == 0.0f); // recovery after faults
   c.reset();
 
   ObstacleNavigator nav;

@@ -45,6 +45,13 @@ The project pins the **official PlatformIO Espressif32 6.12.0** (Arduino-ESP32 2
 
 By default `GYROGUARD_AUTONOMY=0` in `platformio.ini`. `GYROGUARD_AUTONOMY=1` enables experimental navigation **only after safe hardware validation**. Motor sign, mount orientation, controller gains and motor PWM cap are in `include/Config.h` and `lib/GyroCore/src/GyroCore.h`.
 
+## Continuous integration and fault hardening
+
+- **Host tests:** `.github/workflows/host-tests.yml` runs C++ controller, navigation, servo scheduler, and Arduino-interface syntax checks.
+- **ESP32 compile check:** `.github/workflows/firmware-build.yml` compiles classic ESP32 firmware with PlatformIO Core 6.1.18 and pinned `espressif32 @ 6.12.0`; it does **not** flash or test physical hardware.
+- Navigation control now refuses non-finite drive and turn intent rather than propagating invalid values through the balance controller. The sonar ISR latches the first completed ECHO pulse to reject later spurious edges before the main loop consumes it.
+- **Important:** Hardware power cutoff, motor polarity, stable upright control and encoder-based velocity regulation still require verification before autonomous driving.
+
 ## Roadmap
 
 1. **Bench validation:** hardware wiring, PWM polarity, IMU pitch direction, sensor range tests, fail-stop behavior.

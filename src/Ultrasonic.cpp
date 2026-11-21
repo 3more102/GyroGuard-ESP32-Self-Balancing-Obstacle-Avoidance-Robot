@@ -16,11 +16,15 @@ uint32_t servoDuty(int deg) {
 
 void IRAM_ATTR UltrasonicScanner::echoInterrupt(void *arg) {
   UltrasonicScanner *scanner = static_cast<UltrasonicScanner *>(arg);
-  if (!scanner->waitingEcho_) return;
+  // Latch the first complete echo only: a subsequent ringing/noise edge
+  // must not overwrite a range sample before tick() consumes it.
+  if (!scanner->waitingEcho_ || scanner->ready_) return;
   const uint32_t t = micros();
   if (digitalRead(cfg::SONAR_ECHO) == HIGH) {
-    scanner->riseUs_ = t;
-    scanner->sawRise_ = true;
+    if (!scanner->sawRise_) {
+      scanner->riseUs_ = t;
+      scanner->sawRise_ = true;
+    }
   } else if (scanner->sawRise_) {
     scanner->widthUs_ = t - scanner->riseUs_;
     scanner->ready_ = true;

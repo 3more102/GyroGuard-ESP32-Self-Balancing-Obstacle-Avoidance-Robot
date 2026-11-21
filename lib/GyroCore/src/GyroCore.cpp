@@ -15,7 +15,10 @@ void BalanceController::reset() { integral_ = 0.0f; }
 MotorCommand BalanceController::update(float pitchDeg, float pitchRateDegPerSec,
                                        float desiredDrive, float desiredTurn,
                                        float dtSec) {
+  // Invalid navigation intent must never turn into a non-finite motor output.
+  // Treat corrupt or uninitialized intent as a control fault and fail closed.
   if (!std::isfinite(pitchDeg) || !std::isfinite(pitchRateDegPerSec) ||
+      !std::isfinite(desiredDrive) || !std::isfinite(desiredTurn) ||
       !std::isfinite(dtSec) || dtSec <= 0.0f || dtSec > 0.030f) {
     reset();
     return {};
