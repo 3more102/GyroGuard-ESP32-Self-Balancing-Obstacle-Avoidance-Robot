@@ -53,6 +53,22 @@ int main() {
   assert(intent.turn > 0); // steer away from left wall
   intent = nav.update({{120, true}, {90, true}, {15, true}});
   assert(intent.turn < 0); // steer away from right wall
+  // Corrupted but 'valid' ranges must not authorize autonomous motion.
+  intent = nav.update({{INFINITY, true}, {100, true}, {100, true}});
+  assert(intent.drive == 0.0f && intent.turn == 0.0f);
+  intent = nav.update({{400, true}, {100, true}, {100, true}});
+  assert(intent.drive == 0.0f && intent.turn == 0.0f);
+  intent = nav.update({{35, true}, {NAN, true}, {90, true}});
+  assert(intent.drive == 0.0f && intent.turn == 0.0f);
+  intent = nav.update({{35, true}, {90, true}, {INFINITY, true}});
+  assert(intent.drive == 0.0f && intent.turn == 0.0f);
+  intent = nav.update({{35, true}, {90, true}, {60, true}});
+  assert(intent.turn < 0.0f);
+  // Losing a side sensor mid-turn must cancel the old turn command.
+  intent = nav.update({{45, true}, {NAN, true}, {60, true}});
+  assert(intent.drive == 0.0f && intent.turn == 0.0f);
+  intent = nav.update({{120, true}, {90, true}, {90, true}});
+  assert(intent.drive > 0.0f && intent.turn == 0.0f);
   // One HC-SR04 follows a servo schedule: front -> left -> right -> front.
   ServoScanScheduler scan;
   assert(scan.target() == LookDirection::Front);
