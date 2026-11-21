@@ -2,6 +2,45 @@
 #include <cstdint>
 
 namespace gyroguard {
+// A button held at boot must never produce an arm/disarm event.
+// A stable release followed by a new debounced press is required.
+class ArmButtonGuard {
+public:
+  bool update(bool pressed, uint32_t nowMs) {
+    if (!initialized_) {
+      initialized_ = true;
+      rawPressed_ = stablePressed_ = pressed;
+      lastChangeMs_ = nowMs;
+      return false;
+    }
+    if (pressed != rawPressed_) {
+      rawPressed_ = pressed;
+      lastChangeMs_ = nowMs;
+    }
+    // Unsigned arithmetic handles millis() wraparound.
+    if (static_cast<uint32_t>(nowMs - lastChangeMs_) < 40u) return false;
+    if (rawPressed_ != stablePressed_) {
+      stablePressed_ = rawPressed_;
+      if (!stablePressed_) {
+        released_ = true;
+        return false;
+      }
+      if (released_) {
+        released_ = false;
+        return true;
+      }
+    }
+    if (!stablePressed_) released_ = true;
+    return false;
+  }
+private:
+  bool initialized_ = false;
+  bool rawPressed_ = false;
+  bool stablePressed_ = false;
+  bool released_ = false;
+  uint32_t lastChangeMs_ = 0;
+};
+
 struct MotorCommand {
   float left = 0.0f;     // normalized -1 .. +1
   float right = 0.0f;
