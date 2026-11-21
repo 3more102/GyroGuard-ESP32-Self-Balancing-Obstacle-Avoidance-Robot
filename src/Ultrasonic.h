@@ -12,7 +12,7 @@ public:
     return schedule_.readings(millis());
   }
   bool scanning() const { return schedule_.scanning(); }
-  gyroguard::LookDirection pointing() const { return schedule_.target(); }
+  gyroguard::LookDirection pointing() const { return pointing_; }
 private:
   static void IRAM_ATTR echoInterrupt(void *arg);
   void moveTo(gyroguard::LookDirection direction);
