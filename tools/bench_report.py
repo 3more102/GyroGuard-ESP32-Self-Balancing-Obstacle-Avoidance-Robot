@@ -26,6 +26,8 @@ def parse_sample(line):
     try:
         if fields["arm"] not in ("0", "1") or fields["imu"] not in ("0", "1"):
             return None
+        if fields.get("arm_ready") not in (None, "0", "1"):
+            return None
         if fields["scan"] not in ("0", "1"):
             return None
         if fields["look"] not in ("front", "left", "right"):
@@ -45,6 +47,7 @@ def parse_sample(line):
         return None
     return {
         "armed": fields["arm"] == "1",
+        "arm_ready": None if "arm_ready" not in fields else fields["arm_ready"] == "1",
         "imu_ok": fields["imu"] == "1",
         "scanning": fields["scan"] == "1",
         "look": fields["look"],
@@ -57,6 +60,7 @@ def analyze_lines(lines):
     result = {
         "samples": 0,
         "armed_samples": 0,
+        "arm_ready_samples": 0,
         "imu_fault_samples": 0,
         "scan_samples": 0,
         "max_abs_pitch_deg": 0.0,
@@ -73,6 +77,7 @@ def analyze_lines(lines):
             continue
         result["samples"] += 1
         result["armed_samples"] += int(sample["armed"])
+        result["arm_ready_samples"] += int(sample["arm_ready"] is True)
         result["imu_fault_samples"] += int(not sample["imu_ok"])
         result["scan_samples"] += int(sample["scanning"])
         result["max_abs_pitch_deg"] = max(result["max_abs_pitch_deg"], abs(sample["pitch"]))
@@ -104,7 +109,7 @@ def main(argv=None):
         print(json.dumps(summary, indent=2, sort_keys=True))
     else:
         print("GyroGuard bench telemetry (diagnostic only; hardware not certified)")
-        print(f"Telemetry samples: {summary['samples']} | armed: {summary['armed_samples']} | scanning: {summary['scan_samples']}")
+        print(f"Telemetry samples: {summary['samples']} | armed: {summary['armed_samples']} | arm-ready: {summary['arm_ready_samples']} | scanning: {summary['scan_samples']}")
         print(f"IMU fault samples: {summary['imu_fault_samples']} | max |pitch|: {summary['max_abs_pitch_deg']:.2f} deg")
         print("Valid range samples: " + ", ".join(f"{k}={v}" for k, v in summary["valid_range_samples"].items()))
         print(f"Disarm reasons: {summary['disarm_reasons'] or 'none recorded'}")
