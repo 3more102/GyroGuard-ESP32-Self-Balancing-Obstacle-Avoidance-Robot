@@ -34,6 +34,34 @@ int main() {
   assert(u.left == 0.0f && u.right == 0.0f); // recovery after faults
   c.reset();
 
+  // Boot-held LOW cannot arm, bounce ignored and repeated holds suppressed.
+  ArmButtonGuard button;
+  assert(!button.update(true, 0u));
+  assert(!button.update(true, 100u));
+  assert(!button.update(false, 101u));
+  assert(!button.update(false, 139u));
+  assert(!button.update(false, 141u));
+  assert(!button.update(true, 150u));
+  assert(!button.update(false, 155u));
+  assert(!button.update(true, 160u));
+  assert(!button.update(true, 199u));
+  assert(button.update(true, 200u));
+  assert(!button.update(true, 260u));
+  assert(!button.update(false, 300u));
+  assert(!button.update(false, 341u));
+  assert(!button.update(true, 400u));
+  assert(button.update(true, 441u));
+  ArmButtonGuard releasedAtBoot;
+  assert(!releasedAtBoot.update(false, 0u));
+  assert(!releasedAtBoot.update(false, 41u));
+  assert(!releasedAtBoot.update(true, 45u));
+  assert(releasedAtBoot.update(true, 85u));
+  ArmButtonGuard wrapButton;
+  assert(!wrapButton.update(false, 0xFFFFFFE0u));
+  assert(!wrapButton.update(false, 0x00000011u));
+  assert(!wrapButton.update(true, 0x00000020u));
+  assert(wrapButton.update(true, 0x00000049u));
+
   ObstacleNavigator nav;
   auto intent = nav.update({{0, false}, {100, true}, {100, true}});
   assert(intent.drive == 0 && intent.turn == 0); // fail closed
