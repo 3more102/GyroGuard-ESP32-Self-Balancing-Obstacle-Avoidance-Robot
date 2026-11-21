@@ -33,6 +33,6 @@ python3 tools/bench_report.py bench.log
 python3 tools/bench_report.py bench.log --strict --json
 ```
 
-Stop the serial monitor with Ctrl+C before reading the file. The report counts samples, motor-arming samples, scan samples, IMU faults, valid directional sonar samples, maximum absolute reported pitch and disarm reasons. With `--strict`, missing telemetry, any recorded IMU fault, or a disarm causes exit code 2. Invalid sonar echoes alone do not indicate a hardware fault (e.g., no echo due to out-of-range targets).
+Stop the serial monitor with Ctrl+C before reading the file. The report counts samples, motor-arming samples, arm-ready samples (when reported), scan samples, IMU faults, valid directional sonar samples, maximum absolute reported pitch and disarm reasons. With `--strict`, missing telemetry, any recorded IMU fault, or a disarm causes exit code 2. Invalid sonar echoes alone do not indicate a hardware fault (e.g., no echo due to out-of-range targets).
 
 **Do not treat a clean bench report as proof of reliable balancing or autonomous avoidance.** Record on-hardware results for pitch/motor-sign polarity, ECHO level shifting, watchdog/disarm behavior, response to an object at measured distances and servo physical travel. Keep `GYROGUARD_AUTONOMY=0` until upright stability and navigation behavior have been validated under containment. Wheel encoders/velocity feedback are still not implemented.
