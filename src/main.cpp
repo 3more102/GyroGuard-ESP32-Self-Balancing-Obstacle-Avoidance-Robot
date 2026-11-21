@@ -10,6 +10,12 @@
 #ifndef GYROGUARD_AUTONOMY
 #define GYROGUARD_AUTONOMY 0
 #endif
+#ifndef GYROGUARD_MOTOR_ENABLE
+#define GYROGUARD_MOTOR_ENABLE 0
+#endif
+#if GYROGUARD_MOTOR_ENABLE != 0 && GYROGUARD_MOTOR_ENABLE != 1
+#error "GYROGUARD_MOTOR_ENABLE must be 0 or 1"
+#endif
 #ifndef GYROGUARD_ENCODERS
 #define GYROGUARD_ENCODERS 0
 #endif
@@ -71,6 +77,8 @@ void checkButton() {
     if (stableButton == LOW) {
       if (armed) {
         disarm("button");
+      } else if (!GYROGUARD_MOTOR_ENABLE) {
+        Serial.println("ARM REFUSED: motor output locked in firmware build");
       } else if (imuOkay && armingInterlock.ready() &&
                  std::isfinite(currentPitch) &&
                  fabsf(currentPitch) <= cfg::ARM_LIMIT_DEG) {
@@ -94,6 +102,8 @@ void setup() {
   Wire.setClock(400000);
   Wire.setTimeOut(8);
   Serial.println("GyroGuard ESP32 | SAFETY: motors DISABLED");
+  Serial.printf("Motor outputs: %s (compile-time)\n",
+                GYROGUARD_MOTOR_ENABLE ? "UNLOCKED" : "LOCKED");
   Serial.println("Hold chassis still, upright, with wheels off the ground.");
   imuOkay = imu.begin() && imu.calibrateGyro();
   if (!imuOkay) Serial.println("MPU6050 initialization/calibration failed");
@@ -149,7 +159,9 @@ void loop() {
                                                intent.drive, intent.turn, dt);
           lastCommandLeft = cfg::MOTOR_SIGN * power.left;
           lastCommandRight = cfg::MOTOR_SIGN * power.right;
+#if GYROGUARD_MOTOR_ENABLE
           motors.set(lastCommandLeft, lastCommandRight);
+#endif
         }
       }
     }
@@ -163,11 +175,11 @@ void loop() {
                          sonar.pointing() == gyroguard::LookDirection::Left ? "left" : "right";
     const uint32_t ctlMin = controlWindowCycles ? controlWindowMinUs : 0u;
     Serial.printf(
-        "arm=%d imu=%d pitch=%.2f arm_ready=%d scan=%d look=%s "
+        "arm=%d motor_en=%d imu=%d pitch=%.2f arm_ready=%d scan=%d look=%s "
         "front=%s%.1f left=%s%.1f right=%s%.1f "
         "t_ms=%lu ctl_n=%lu ctl_min_us=%lu ctl_max_us=%lu "
         "ctl_misses=%lu rate_dps=%.2f cmd_l=%.3f cmd_r=%.3f\n",
-        armed, imuOkay, currentPitch, armingInterlock.ready(),
+        armed, GYROGUARD_MOTOR_ENABLE, imuOkay, currentPitch, armingInterlock.ready(),
         sonar.scanning(), facing,
         d.front.valid ? "" : "?", d.front.cm,
         d.left.valid ? "" : "?", d.left.cm,
