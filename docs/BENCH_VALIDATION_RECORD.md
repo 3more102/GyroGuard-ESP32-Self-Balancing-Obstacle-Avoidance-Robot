@@ -20,7 +20,8 @@
 
 | Test | Method | Result / measured data | Evidence |
 |---|---|---|---|
-| 1. Motor power disconnected at boot | Boot; monitor GPIO23/STBY and wheels | NOT TESTED | |
+| 1. Motor power disconnected at boot | Default motor-locked image with VM disconnected; measure GPIO23/STBY LOW | NOT TESTED | |
+| 1a. Compile-time motor lock | Confirm `motor_en=0`, arming refused, STBY remains LOW under attempted `set()` | NOT TESTED | |
 | 2. Rail checks | Meter: VM, 5V, 3V3 at idle and load | NOT TESTED | |
 | 3. HC-SR04 ECHO shift | Meter/scope confirm GPIO34 stays <=3.3 V | NOT TESTED | |
 | 4. IMU stationary startup | Boot upright without movement; inspect imu= and pitch | NOT TESTED | |

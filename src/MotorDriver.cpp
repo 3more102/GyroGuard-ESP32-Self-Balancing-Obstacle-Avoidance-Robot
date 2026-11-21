@@ -2,6 +2,13 @@
 #include "Config.h"
 #include <cmath>
 
+#ifndef GYROGUARD_MOTOR_ENABLE
+#define GYROGUARD_MOTOR_ENABLE 0
+#endif
+#if GYROGUARD_MOTOR_ENABLE != 0 && GYROGUARD_MOTOR_ENABLE != 1
+#error "GYROGUARD_MOTOR_ENABLE must be 0 or 1"
+#endif
+
 void MotorDriver::begin() {
   pinMode(cfg::MOTOR_STBY, OUTPUT);
   digitalWrite(cfg::MOTOR_STBY, LOW);
@@ -30,9 +37,16 @@ void MotorDriver::writeMotor(float power, int sign, int in1, int in2, uint8_t ch
   ledcWrite(channel, static_cast<uint32_t>(fabsf(power) * 1023.0f));
 }
 void MotorDriver::set(float left, float right) {
+#if GYROGUARD_MOTOR_ENABLE
   writeMotor(left, cfg::LEFT_MOTOR_SIGN, cfg::MOTOR_L_IN1, cfg::MOTOR_L_IN2, 0);
   writeMotor(right, cfg::RIGHT_MOTOR_SIGN, cfg::MOTOR_R_IN1, cfg::MOTOR_R_IN2, 1);
   digitalWrite(cfg::MOTOR_STBY, HIGH);
+#else
+  // Compile-time lock: even an accidental call cannot energize STBY.
+  (void)left;
+  (void)right;
+  disable();
+#endif
 }
 void MotorDriver::disable() {
   digitalWrite(cfg::MOTOR_STBY, LOW);
