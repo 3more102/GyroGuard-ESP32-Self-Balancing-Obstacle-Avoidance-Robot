@@ -83,7 +83,6 @@ void setup() {
 
 void loop() {
   sonar.tick(); // non-blocking echoes
-  checkButton();
   const uint32_t now = micros();
   const uint32_t elapsed = now - lastControlUs;
   if (elapsed >= cfg::CONTROL_PERIOD_US) {
@@ -118,6 +117,8 @@ void loop() {
       }
     }
   }
+  // Check arming only after processing the latest IMU and control deadline.
+  checkButton();
   if (millis() - lastPrintMs >= 200u) {
     lastPrintMs = millis();
     const auto d = sonar.readings();

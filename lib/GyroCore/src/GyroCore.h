@@ -45,6 +45,7 @@ private:
   float maxAbsPitchRateDegPerSec_;
   uint32_t stableHoldMs_;
   uint32_t stableSinceMs_ = 0;
+  uint32_t lastSampleMs_ = 0;
   bool tracking_ = false;
   bool ready_ = false;
 };
