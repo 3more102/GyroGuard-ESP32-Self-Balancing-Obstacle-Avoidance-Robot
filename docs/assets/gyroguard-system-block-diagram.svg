@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="940" viewBox="0 0 1600 940" role="img" aria-label="GyroGuard ESP32 robot system architecture diagram showing MPU6050 and servo-mounted HC-SR04 input, ESP32 tilt estimation and balance control, TB6612FNG motor driver, two geared motors and power distribution">
+<title>GyroGuard ESP32 V0.2 System Block Diagram</title><desc>Engineering block diagram of a two-wheel self-balancing ESP32 robot with one servo-scanned ultrasonic obstacle sensor, closed-loop stabilization, a motor driver, safety controls and independent regulated power rails.</desc>
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#071121"/><stop offset="1" stop-color="#122642"/></linearGradient>
+<linearGradient id="center" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#172e53"/><stop offset="1" stop-color="#102038"/></linearGradient>
+<linearGradient id="navy" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0d1c34"/><stop offset="1" stop-color="#123256"/></linearGradient>
+<marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,3 L0,6 Z" fill="#6dcbe9"/></marker>
+<marker id="arrowGold" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,3 L0,6 Z" fill="#fcbf68"/></marker>
+<filter id="shadow" x="-15%" y="-15%" width="130%" height="150%"><feDropShadow dx="0" dy="12" stdDeviation="15" flood-color="#000716" flood-opacity=".37"/></filter>
+</defs>
+<rect x="0" y="0" width="1600" height="940" rx="0" fill="url(#bg)" stroke="none" stroke-width="1.5" />
+<path d="M0 141 H1600" stroke="#245078" stroke-width="2"/><path d="M64 116 H1536" stroke="#1e466a" stroke-width="1"/>
+<circle cx="89" cy="68" r="31" fill="#102b48" stroke="#51d3c2" stroke-width="2"/><path d="M73 80 L84 60 L98 69 L105 49" fill="none" stroke="#8ae7dc" stroke-width="5" stroke-linecap="round"/><circle cx="73" cy="80" r="5" fill="#53d2c5"/><circle cx="105" cy="49" r="5" fill="#53d2c5"/>
+<text x="143" y="64" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="43" font-weight="780" fill="#fff" >GyroGuard</text>
+<text x="378" y="64" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="43" font-weight="780" fill="#f4bf69" >ESP32</text>
+<text x="143" y="99" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="18" font-weight="570" fill="#9cbbd4" >SELF-BALANCING ROBOT  /  SERVO-SCANNED OBSTACLE AVOIDANCE</text>
+<rect x="1377" y="45" width="154" height="28" rx="14" fill="#15314a" stroke="none" stroke-width="1.5" />
+<text x="1390" y="64" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" font-weight="650" fill="#6fe0d8" >VERSION 0.2</text>
+<text x="76" y="177" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="16" font-weight="800" fill="#56d6cd" >01</text>
+<text x="112" y="177" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="21" font-weight="720" fill="#e8f4ff" >SENSING &amp; SAFETY</text>
+<text x="541" y="177" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="16" font-weight="800" fill="#71baff" >02</text>
+<text x="578" y="177" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="21" font-weight="720" fill="#e8f4ff" >ESP32 CONTROL</text>
+<text x="1180" y="177" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="16" font-weight="800" fill="#ffc879" >03</text>
+<text x="1217" y="177" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="21" font-weight="720" fill="#e8f4ff" >ACTUATION</text>
+<rect x="65" y="195" width="374" height="138" rx="16" fill="#13243a" stroke="#2a4561" stroke-width="1.5" />
+<rect x="65" y="215" width="5" height="98" rx="3" fill="#5bdccd" stroke="none" stroke-width="1.5" />
+<text x="90" y="230" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="23" font-weight="700" fill="#f3f8ff" >MPU6050  ·  IMU</text>
+<text x="90" y="264" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17" font-weight="450" fill="#9fb8d0" >Pitch and angular-rate sensing</text>
+<text x="90" y="289" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="16" font-weight="450" fill="#9fb8d0" >I2C  ·  SDA 21 / SCL 22</text>
+<rect x="65" y="357" width="374" height="138" rx="16" fill="#13243a" stroke="#2a4561" stroke-width="1.5" />
+<rect x="65" y="377" width="5" height="98" rx="3" fill="#5bdccd" stroke="none" stroke-width="1.5" />
+<text x="90" y="392" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="23" font-weight="700" fill="#f3f8ff" >HC-SR04  ·  SONAR</text>
+<text x="90" y="426" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17" font-weight="450" fill="#9fb8d0" >One sensor on a scanning servo</text>
+<text x="90" y="451" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="16" font-weight="450" fill="#9fb8d0" >TRIG 32 / ECHO 34</text>
+<rect x="282" y="459" width="138" height="28" rx="14" fill="#173d4f" stroke="none" stroke-width="1.5" />
+<text x="295" y="478" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" font-weight="650" fill="#91efe3" >3.3 V ECHO</text>
+<rect x="65" y="519" width="374" height="108" rx="16" fill="#13243a" stroke="#2a4561" stroke-width="1.5" />
+<rect x="65" y="539" width="5" height="68" rx="3" fill="#8fa8c2" stroke="none" stroke-width="1.5" />
+<text x="90" y="554" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="23" font-weight="700" fill="#f3f8ff" >ARM / DISARM</text>
+<text x="90" y="588" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17" font-weight="450" fill="#9fb8d0" >Physical enable switch</text>
+<text x="90" y="613" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="16" font-weight="450" fill="#9fb8d0" >Tilt and IMU fault cutoffs</text>
+<rect x="527" y="195" width="560" height="432" rx="24" fill="url(#center)" stroke="#4b88ca" stroke-width="1.5" filter="url(#shadow)"/>
+<rect x="527" y="195" width="560" height="78" rx="24" fill="#164374" stroke="none" stroke-width="1.5" />
+<rect x="527" y="245" width="560" height="28" rx="0" fill="#164374" stroke="none" stroke-width="1.5" />
+<rect x="552" y="217" width="37" height="37" rx="7" fill="none" stroke="#c4e5ff" stroke-width="2.5"/><path d="M546 223 h-7 m7 9 h-7 m7 9 h-7 M595 223 h7 m-7 9 h7 m-7 9 h7" stroke="#c4e5ff" stroke-width="2.2"/>
+<text x="609" y="247" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="27" font-weight="780" fill="#fff" >ESP32  ·  CENTRAL CONTROLLER</text>
+<rect x="550" y="286" width="515" height="70" rx="14" fill="#13253e" stroke="#335270" stroke-width="1.5" />
+<rect x="567" y="300" width="40" height="40" rx="12" fill="#1d3956" stroke="#80baff" stroke-width="1.5" />
+<text x="580" y="327" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="19" font-weight="800" fill="#80baff" >A</text>
+<text x="624" y="314" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="21" font-weight="680" fill="#fff" >Sensor fusion / pitch estimation</text>
+<text x="624" y="340" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17" font-weight="470" fill="#a8c3d9" >MPU6050 complementary filter</text>
+<rect x="550" y="366" width="515" height="70" rx="14" fill="#13253e" stroke="#335270" stroke-width="1.5" />
+<rect x="567" y="380" width="40" height="40" rx="12" fill="#1d3956" stroke="#80baff" stroke-width="1.5" />
+<text x="580" y="407" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="19" font-weight="800" fill="#80baff" >B</text>
+<text x="624" y="394" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="21" font-weight="680" fill="#fff" >Balance stabilization</text>
+<text x="624" y="420" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17" font-weight="470" fill="#a8c3d9" >200 Hz angle PD + optional integral</text>
+<rect x="550" y="446" width="515" height="70" rx="14" fill="#13253e" stroke="#335270" stroke-width="1.5" />
+<rect x="567" y="460" width="40" height="40" rx="12" fill="#1d3956" stroke="#5edcc8" stroke-width="1.5" />
+<text x="580" y="487" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="19" font-weight="800" fill="#5edcc8" >C</text>
+<text x="624" y="474" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="21" font-weight="680" fill="#fff" >Servo scan + obstacle policy</text>
+<text x="624" y="500" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17" font-weight="470" fill="#a8c3d9" >Front / left / right  ·  rule-based logic</text>
+<rect x="550" y="526" width="515" height="70" rx="14" fill="#13253e" stroke="#335270" stroke-width="1.5" />
+<rect x="567" y="540" width="40" height="40" rx="12" fill="#1d3956" stroke="#f5bf70" stroke-width="1.5" />
+<text x="580" y="567" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="19" font-weight="800" fill="#f5bf70" >D</text>
+<text x="624" y="554" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="21" font-weight="680" fill="#fff" >Safety + motor command</text>
+<text x="624" y="580" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17" font-weight="470" fill="#a8c3d9" >Manual arm, fault stop, PWM + direction</text>
+<rect x="1161" y="195" width="373" height="118" rx="16" fill="#13243a" stroke="#2a4561" stroke-width="1.5" />
+<rect x="1161" y="215" width="5" height="78" rx="3" fill="#5bdccd" stroke="none" stroke-width="1.5" />
+<text x="1186" y="230" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="23" font-weight="700" fill="#f3f8ff" >SERVO MOTOR</text>
+<text x="1186" y="264" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17" font-weight="450" fill="#9fb8d0" >Sweeps HC-SR04 sensor head</text>
+<text x="1186" y="289" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="16" font-weight="450" fill="#9fb8d0" >GPIO 33  ·  PWM scan command</text>
+<rect x="1161" y="358" width="373" height="126" rx="16" fill="#13243a" stroke="#2a4561" stroke-width="1.5" />
+<rect x="1161" y="378" width="5" height="86" rx="3" fill="#f9c374" stroke="none" stroke-width="1.5" />
+<text x="1186" y="393" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="23" font-weight="700" fill="#f3f8ff" >TB6612FNG  ·  DRIVER</text>
+<text x="1186" y="427" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17" font-weight="450" fill="#9fb8d0" >Left/right PWM + direction</text>
+<text x="1186" y="452" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="16" font-weight="450" fill="#9fb8d0" >Motor supply isolated from logic</text>
+<rect x="1161" y="523" width="373" height="104" rx="16" fill="#13243a" stroke="#2a4561" stroke-width="1.5" />
+<rect x="1161" y="543" width="5" height="64" rx="3" fill="#f9c374" stroke="none" stroke-width="1.5" />
+<text x="1186" y="558" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="23" font-weight="700" fill="#f3f8ff" >2 × GEARED DC MOTORS</text>
+<text x="1186" y="592" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17" font-weight="450" fill="#9fb8d0" >Differential wheel drive</text>
+<text x="1186" y="617" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="16" font-weight="450" fill="#9fb8d0" >Robot pitch changes with torque</text>
+<path d="M 440 267 L 525 267" fill="none" stroke="#6dcbe9" stroke-width="3" marker-end="url(#arrowBlue)" stroke-linecap="round"/>
+<path d="M 440 430 L 525 430" fill="none" stroke="#6dcbe9" stroke-width="3" marker-end="url(#arrowBlue)" stroke-linecap="round"/>
+<path d="M 440 574 L 525 574" fill="none" stroke="#9baecb" stroke-width="3" marker-end="url(#arrowBlue)" stroke-linecap="round"/>
+<path d="M 1087 256 L 1160 256" fill="none" stroke="#6dcbe9" stroke-width="3" marker-end="url(#arrowBlue)" stroke-linecap="round"/>
+<path d="M 1087 420 L 1160 420" fill="none" stroke="#fcbf68" stroke-width="3" marker-end="url(#arrowGold)" stroke-linecap="round"/>
+<path d="M 1348 484 L 1348 521" fill="none" stroke="#fcbf68" stroke-width="3" marker-end="url(#arrowGold)" stroke-linecap="round"/>
+<text x="449" y="251" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="15" font-weight="650" fill="#a5e1f4" >I2C</text>
+<text x="440" y="410" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" font-weight="650" fill="#a5e1f4" >Range</text>
+<text x="1091" y="239" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="15" font-weight="650" fill="#a5e1f4" >Servo PWM</text>
+<text x="1104" y="403" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" font-weight="650" fill="#ffd596" >Motor PWM</text>
+<path d="M 1385 314 L 1385 344" fill="none" stroke="#65dcce" stroke-width="2" stroke-dasharray="5 7"/>
+<text x="1403" y="338" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="15" font-weight="550" fill="#79dace" >Aims sonar</text>
+<rect x="65" y="656" width="1469" height="55" rx="13" fill="#142c46" stroke="#2c536e" stroke-width="1.5" />
+<text x="91" y="691" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17" font-weight="780" fill="#65dace" >CLOSED-LOOP BALANCE</text>
+<text x="359" y="691" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17" font-weight="560" fill="#cbdfee" >Robot tilt  →  MPU6050  →  pitch estimate  →  balance control  →  motor driver  →  wheels</text>
+<text x="75" y="755" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="16" font-weight="800" fill="#f9c374" >04</text>
+<text x="112" y="755" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="21" font-weight="720" fill="#e8f4ff" >POWER &amp; ELECTRICAL SAFETY</text>
+<rect x="65" y="774" width="1469" height="111" rx="18" fill="#122438" stroke="#3b536b" stroke-width="1.5" />
+<rect x="85" y="791" width="325" height="78" rx="14" fill="#1b324c" stroke="#425b75" stroke-width="1.5" />
+<text x="108" y="823" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="19" font-weight="710" fill="#fff" >BATTERY / FUSE / SWITCH</text>
+<text x="108" y="849" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="15" font-weight="500" fill="#a9c0d2" >Rated for motors and regulators</text>
+<path d="M 411 831 L 474 831" fill="none" stroke="#fcbf68" stroke-width="3" marker-end="url(#arrowGold)" stroke-linecap="round"/>
+<rect x="475" y="791" width="326" height="78" rx="14" fill="#1b324c" stroke="#425b75" stroke-width="1.5" />
+<text x="498" y="823" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="19" font-weight="710" fill="#fff" >REGULATED POWER RAILS</text>
+<text x="498" y="849" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="15" font-weight="500" fill="#a9c0d2" >5 V for servo/sonar  ·  3.3 V logic</text>
+<path d="M 802 831 L 865 831" fill="none" stroke="#fcbf68" stroke-width="3" marker-end="url(#arrowGold)" stroke-linecap="round"/>
+<rect x="867" y="791" width="340" height="78" rx="14" fill="#1b324c" stroke="#425b75" stroke-width="1.5" />
+<text x="889" y="823" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="19" font-weight="710" fill="#fff" >SEPARATE MOTOR SUPPLY</text>
+<text x="889" y="849" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="15" font-weight="500" fill="#a9c0d2" >TB6612 VM within device limits</text>
+<rect x="1230" y="793" width="280" height="73" rx="14" fill="#3b2b1f" stroke="#9d713a" stroke-width="1.5" />
+<text x="1251" y="822" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17" font-weight="740" fill="#ffd08e" >REQUIRED</text>
+<text x="1251" y="847" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="15" font-weight="570" fill="#ffe1af" >Common GND + ECHO divider</text>
+<text x="72" y="918" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17" font-weight="650" fill="#99b2c9" >DESIGN STATUS: SOFTWARE PROTOTYPE  •  AUTONOMOUS DRIVE DISABLED BY DEFAULT  •  HARDWARE TESTING REQUIRED</text>
+</svg>

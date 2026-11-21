@@ -4,6 +4,12 @@
 
 ESP32-WROOM-32 prototype with an MPU6050 IMU, TB6612FNG dual motor driver, two DC geared motors and **one HC-SR04 ultrasonic sensor mounted on a servo**. The design separates the inner balance loop from a conservative navigation policy. Source includes host-runnable controller tests and wiring/commissioning documentation.
 
+## System architecture
+
+![GyroGuard ESP32 V0.2 system block diagram](docs/assets/gyroguard-system-block-diagram.svg)
+
+The diagram shows the **MPU6050 → ESP32 stabilization loop**, the **single HC-SR04 sensor mounted on a scanning servo**, and the **TB6612FNG driving the left/right motors**, together with manual arming and power distribution. It is a design schematic, not evidence of hardware validation. The controller uses a complementary pitch filter and a 200 Hz angle controller; obstacle avoidance is a conservative, rule-based prototype and is **disabled by default**.
+
 ## Implemented
 
 - 200 Hz polled balance loop with MPU6050 gyro offset calibration, complementary pitch filter and angle PD control with optional I term.
