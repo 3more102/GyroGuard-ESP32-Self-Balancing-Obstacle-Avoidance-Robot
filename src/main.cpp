@@ -16,6 +16,8 @@ MotorDriver motors;
 UltrasonicScanner sonar;
 gyroguard::BalanceController controller;
 gyroguard::ObstacleNavigator navigator;
+gyroguard::ArmingInterlock armingInterlock(
+    cfg::ARM_LIMIT_DEG, cfg::ARM_MAX_RATE_DPS, cfg::ARM_STABLE_MS);
 
 bool imuOkay = false;
 bool armed = false;
@@ -32,6 +34,7 @@ void disarm(const char *reason) {
   motors.disable();
   controller.reset();
   navigator.reset();
+  armingInterlock.reset();
   if (wasArmed) {
     Serial.print("DISARM: "); Serial.println(reason);
   }
@@ -47,14 +50,15 @@ void checkButton() {
     if (stableButton == LOW) {
       if (armed) {
         disarm("button");
-      } else if (imuOkay && std::isfinite(currentPitch) &&
-                 fabsf(currentPitch) < cfg::ARM_LIMIT_DEG) {
+      } else if (imuOkay && armingInterlock.ready() &&
+                 std::isfinite(currentPitch) &&
+                 fabsf(currentPitch) <= cfg::ARM_LIMIT_DEG) {
         controller.reset();
         navigator.reset();
         armed = true;
         Serial.println("ARMED (press button to disarm)");
       } else {
-        Serial.println("ARM REFUSED: IMU fault or not upright");
+        Serial.println("ARM REFUSED: IMU fault or not steadily upright for 750 ms");
       }
     }
   }
@@ -95,6 +99,7 @@ void loop() {
       } else {
         currentPitch = cfg::PITCH_SIGN * m.pitchDeg;
         const float rate = cfg::PITCH_SIGN * m.gyroYDegPerSec;
+        armingInterlock.observe(currentPitch, rate, imuOkay, millis());
         if (!std::isfinite(currentPitch) ||
             fabsf(currentPitch) > cfg::FALL_LIMIT_DEG) {
           disarm("tilt/fall threshold");
@@ -119,7 +124,8 @@ void loop() {
     const char *facing = sonar.pointing() == gyroguard::LookDirection::Front ? "front" :
                          sonar.pointing() == gyroguard::LookDirection::Left ? "left" : "right";
     Serial.printf("arm=%d imu=%d pitch=%.2f scan=%d look=%s front=%s%.1f left=%s%.1f right=%s%.1f\n",
-                  armed, imuOkay, currentPitch, sonar.scanning(), facing,
+                  armed, imuOkay, currentPitch, armingInterlock.ready(),
+                  sonar.scanning(), facing,
                   d.front.valid ? "" : "?", d.front.cm,
                   d.left.valid ? "" : "?", d.left.cm,
                   d.right.valid ? "" : "?", d.right.cm);
