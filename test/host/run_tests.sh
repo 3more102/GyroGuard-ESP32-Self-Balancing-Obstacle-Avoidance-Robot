@@ -22,5 +22,12 @@ done
 c++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only \
     -DGYROGUARD_ENCODERS=1 \
     -Itest/host/stubs -Iinclude -Isrc -Ilib/GyroCore/src src/main.cpp
+# Compile the deliberate motor-unlocked code path, including encoder diagnostics.
+# These are source syntax checks, not evidence of safe motor behavior.
+for opts in "-DGYROGUARD_MOTOR_ENABLE=1" "-DGYROGUARD_MOTOR_ENABLE=1 -DGYROGUARD_ENCODERS=1"; do
+  # shellcheck disable=SC2086
+  c++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only $opts \
+      -Itest/host/stubs -Iinclude -Isrc -Ilib/GyroCore/src src/main.cpp
+done
 python3 -m unittest discover -s test/host -p "test_*.py" -v
 echo "PASS: ESP32 source syntax check with host interface stubs"
