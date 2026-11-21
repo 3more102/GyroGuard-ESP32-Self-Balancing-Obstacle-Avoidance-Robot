@@ -91,33 +91,52 @@ void ServoScanScheduler::measurement(LookDirection direction, float cm,
   }
 }
 
+namespace {
+// Even a reading marked valid must lie within the HC-SR04's configured
+// accepted measurement envelope. Fail closed on corrupt/non-finite inputs.
+bool usableDistance(const DistanceReading &d) {
+  return d.valid && std::isfinite(d.cm) && d.cm >= 2.0f && d.cm <= 260.0f;
+}
+}
+
 void ObstacleNavigator::reset() { turnDirection_ = 0; }
 
 MotionIntent ObstacleNavigator::update(const ObstacleReadings &d) {
-  // Unknown/stale front range = fail closed: no forward command.
-  if (!d.front.valid || !std::isfinite(d.front.cm) || d.front.cm <= 0.0f) {
+  if (!usableDistance(d.front)) {
     reset();
     return {};
   }
+
+  // Require both recent side measurements to continue a committed turn.
   if (turnDirection_ != 0 && d.front.cm < 85.0f) {
-    if (!d.left.valid || !d.right.valid) return {};
+    if (!usableDistance(d.left) || !usableDistance(d.right)) {
+      reset();
+      return {};
+    }
     return {0.0f, 0.55f * static_cast<float>(turnDirection_)};
   }
+
   if (d.front.cm < 50.0f) {
-    if (!d.left.valid || !d.right.valid ||
-        !std::isfinite(d.left.cm) || !std::isfinite(d.right.cm)) return {};
+    if (!usableDistance(d.left) || !usableDistance(d.right)) {
+      reset();
+      return {};
+    }
     const bool canLeft = d.left.cm > 35.0f;
     const bool canRight = d.right.cm > 35.0f;
-    if (!canLeft && !canRight) return {};
+    if (!canLeft && !canRight) {
+      reset();
+      return {};
+    }
     turnDirection_ = canRight && (!canLeft || d.right.cm >= d.left.cm) ? 1 : -1;
     return {0.0f, 0.55f * static_cast<float>(turnDirection_)};
   }
+
   turnDirection_ = 0;
   if (d.front.cm < 85.0f) return {0.08f, 0.0f};
-  // Side-wall clearance: steer away while approaching open space.
+
   float turn = 0.0f;
-  if (d.left.valid && d.left.cm < 25.0f) turn = 0.25f;
-  if (d.right.valid && d.right.cm < 25.0f) {
+  if (usableDistance(d.left) && d.left.cm < 25.0f) turn = 0.25f;
+  if (usableDistance(d.right) && d.right.cm < 25.0f) {
     turn = (turn > 0.0f) ? 0.0f : -0.25f;
   }
   return {0.18f, turn};
