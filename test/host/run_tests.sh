@@ -18,6 +18,19 @@ for source in src/main.cpp src/MotorDriver.cpp src/Mpu6050.cpp src/Ultrasonic.cp
   c++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only \
       -Itest/host/stubs -Iinclude -Isrc -Ilib/GyroCore/src "$source"
 done
+# Regression-test the motor-output lock and deliberately unlocked build.
+# These are mock-GPIO tests, NOT actual TB6612 measurements.
+for mode in 0 1; do
+  c++ -std=c++17 -Wall -Wextra -Werror -pedantic \
+    -DGYROGUARD_MOTOR_ENABLE="$mode" -Itest/host/stubs -Iinclude -Isrc \
+    src/MotorDriver.cpp test/host/test_motor_lock.cpp -o build/motor_lock_"$mode"
+  ./build/motor_lock_"$mode"
+  for source in src/main.cpp src/MotorDriver.cpp; do
+    c++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only \
+      -DGYROGUARD_MOTOR_ENABLE="$mode" \
+      -Itest/host/stubs -Iinclude -Isrc -Ilib/GyroCore/src "$source"
+  done
+done
 # Compile the optional encoder-enabled branch against minimal Arduino stubs.
 c++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only \
     -DGYROGUARD_ENCODERS=1 \
