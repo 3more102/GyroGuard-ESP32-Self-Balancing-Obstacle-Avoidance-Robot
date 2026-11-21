@@ -114,4 +114,6 @@ Use GPIO35/A + GPIO13/B for left, and GPIO36/A + GPIO14/B for right. Signals mus
 
 The new host-testable [wheel velocity PI preview](docs/VELOCITY_PI_PREVIEW.md) handles left/right encoder tick-rate errors with output limits, conditional anti-windup, invalid-rate checks and a fail-closed disable latch. It is **disabled by default**, has **zero default gains**, and is intentionally **not called by firmware** or connected to the motor commands. The 200 Hz balance loop, optional encoder monitoring and default GYROGUARD_AUTONOMY=0 flag remain unchanged.
 
+The optional encoder-monitor firmware now also prints raw modular cumulative counts (`enc_l_u32`, `enc_r_u32`) for measuring output-wheel ticks per revolution by hand with motor power disconnected. See the linked guide for the modular count-difference formula.
+
 This is a preparation for future supervised encoder-speed calibration and cascaded balance/velocity control, **not an implemented or physically validated speed controller**. Run the added tests with bash test/host/run_tests.sh before hardware work; see the separate commissioning guide for the measurement gates.
