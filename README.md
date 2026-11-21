@@ -24,6 +24,14 @@ The diagram shows the **MPU6050 → ESP32 stabilization loop**, the **single HC-
 
 This is **not TinyML or an AI-trained model**. TinyML is a future optional phase, once real obstacle and motion data have been gathered and a baseline has been validated.
 
+## V0.5 safe commissioning: motor outputs locked by default
+
+The **default** `esp32dev` build sets both `GYROGUARD_MOTOR_ENABLE=0` and `GYROGUARD_AUTONOMY=0`. It runs IMU and single-servo sonar diagnostics but **rejects button arming and compiles out calls to `motors.set()`**. The TB6612 standby output is kept LOW in normal operation. This is a software-only safety precaution, **not** a physical emergency cutoff.
+
+GPIO27 arming requires a debounced (40 ms) release followed by a fresh 40 ms press. Holding the button down during reset **must not arm the robot**, even if the IMU becomes ready. The upright/IMU 750 ms arming interlock is unchanged.
+
+For sensor-only tests, leave the TB6612 motor VM physically disconnected. Confirm IMU direction, sonar ranges and sweep angles, servo power and timing telemetry. Only after a restrained wheels-off-floor test rig and independent motor-power disconnect are ready should you **deliberately** edit `platformio.ini` to `GYROGUARD_MOTOR_ENABLE=1` and rebuild/reflash for supervised motor polarity checks; keep autonomy at 0. Firmware compilation and host tests do not validate balancing behavior on actual hardware.
+
 ## Requirements
 
 - Classic ESP32-WROOM-32 development board (PlatformIO `esp32dev`)
@@ -37,7 +45,7 @@ See [pinout and electrical warnings](docs/PINOUT.md), then [commissioning checkl
 ## Build and test
 
 1. Install VS Code + PlatformIO, open this directory.
-2. Upload: `pio run -t upload` (set correct serial port as needed).
+2. Upload: `pio run -t upload` (set correct serial port as needed). Default firmware **does not energize motors**.
 3. View telemetry: `pio device monitor -b 115200`.
 4. Run C++/Python host regression tests (Linux/macOS with g++, Python 3): `bash test/host/run_tests.sh`.
 5. After supervised, wheels-off-ground tests, capture serial diagnostics: `pio device monitor -b 115200 > bench.log` (stop with Ctrl+C). Summarize the log with `python3 tools/bench_report.py bench.log --json`. Use `--strict` to exit with code 2 for missing telemetry, IMU fault samples or recorded disarms. **A report with no recorded faults does not establish safe hardware operation.**
@@ -50,7 +58,7 @@ The project pins the **official PlatformIO Espressif32 6.12.0** (Arduino-ESP32 2
 
 `HC-SR04 mounted on servo -> front/left/right scan scheduler -> obstacle policy -> bounded drive/turn intent -> balance controller`
 
-By default `GYROGUARD_AUTONOMY=0` in `platformio.ini`. `GYROGUARD_AUTONOMY=1` enables experimental navigation **only after safe hardware validation**. Motor sign, mount orientation, controller gains and motor PWM cap are in `include/Config.h` and `lib/GyroCore/src/GyroCore.h`.
+By default both `GYROGUARD_AUTONOMY=0` and `GYROGUARD_MOTOR_ENABLE=0` in `platformio.ini`. `GYROGUARD_AUTONOMY=1` enables experimental navigation **only after safe hardware validation**. Motor sign, mount orientation, controller gains and motor PWM cap are in `include/Config.h` and `lib/GyroCore/src/GyroCore.h`.
 
 ## Continuous integration and fault hardening
 
