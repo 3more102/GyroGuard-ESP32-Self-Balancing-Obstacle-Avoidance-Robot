@@ -13,6 +13,13 @@
 #ifndef GYROGUARD_ENCODERS
 #define GYROGUARD_ENCODERS 0
 #endif
+// Sensor-only builds never arm or command the motor driver.
+#ifndef GYROGUARD_MOTOR_ENABLE
+#define GYROGUARD_MOTOR_ENABLE 0
+#endif
+#if GYROGUARD_MOTOR_ENABLE != 0 && GYROGUARD_MOTOR_ENABLE != 1
+#error "GYROGUARD_MOTOR_ENABLE must be 0 or 1"
+#endif
 #if GYROGUARD_ENCODERS
 #include "WheelEncoders.h"
 #include <WheelVelocity.h>
@@ -28,6 +35,7 @@ gyroguard::BalanceController controller;
 gyroguard::ObstacleNavigator navigator;
 gyroguard::ArmingInterlock armingInterlock(
     cfg::ARM_LIMIT_DEG, cfg::ARM_MAX_RATE_DPS, cfg::ARM_STABLE_MS);
+gyroguard::ArmButtonGuard armButton;
 
 bool imuOkay = false;
 bool armed = false;
@@ -43,9 +51,6 @@ uint32_t controlWindowCycles = 0;
 uint32_t controlDeadlineMisses = 0;
 uint32_t lastControlUs = 0;
 uint32_t lastPrintMs = 0;
-uint32_t lastButtonChangeMs = 0;
-bool previousButtonSample = HIGH;
-bool stableButton = HIGH;
 
 void disarm(const char *reason) {
   const bool wasArmed = armed;
@@ -62,27 +67,25 @@ void disarm(const char *reason) {
 }
 
 void checkButton() {
-  const bool sample = digitalRead(cfg::ARM_BUTTON);
-  const uint32_t now = millis();
-  if (sample != previousButtonSample) lastButtonChangeMs = now;
-  previousButtonSample = sample;
-  if (sample != stableButton && now - lastButtonChangeMs >= 40) {
-    stableButton = sample;
-    if (stableButton == LOW) {
-      if (armed) {
-        disarm("button");
-      } else if (imuOkay && armingInterlock.ready() &&
-                 std::isfinite(currentPitch) &&
-                 fabsf(currentPitch) <= cfg::ARM_LIMIT_DEG) {
-        controller.reset();
-        navigator.reset();
-        armed = true;
-        Serial.println("ARMED (press button to disarm)");
-      } else {
-        Serial.println("ARM REFUSED: IMU fault or not steadily upright for 750 ms");
-      }
-    }
+  // A held-at-boot GPIO27 button cannot arm until it is released and
+  // deliberately pressed again; both transitions are debounced for 40 ms.
+  if (!armButton.update(digitalRead(cfg::ARM_BUTTON) == LOW, millis())) return;
+#if !GYROGUARD_MOTOR_ENABLE
+  Serial.println("ARM REFUSED: motor output LOCKED (GYROGUARD_MOTOR_ENABLE=0)");
+#else
+  if (armed) {
+    disarm("button");
+  } else if (imuOkay && armingInterlock.ready() &&
+             std::isfinite(currentPitch) &&
+             fabsf(currentPitch) <= cfg::ARM_LIMIT_DEG) {
+    controller.reset();
+    navigator.reset();
+    armed = true;
+    Serial.println("ARMED (press button to disarm)");
+  } else {
+    Serial.println("ARM REFUSED: IMU fault or not steadily upright for 750 ms");
   }
+#endif
 }
 
 void setup() {
@@ -94,6 +97,7 @@ void setup() {
   Wire.setClock(400000);
   Wire.setTimeOut(8);
   Serial.println("GyroGuard ESP32 | SAFETY: motors DISABLED");
+  Serial.println("ARM: release button, wait for arm_ready=1, then press.");
   Serial.println("Hold chassis still, upright, with wheels off the ground.");
   imuOkay = imu.begin() && imu.calibrateGyro();
   if (!imuOkay) Serial.println("MPU6050 initialization/calibration failed");
@@ -104,6 +108,8 @@ void setup() {
 #endif
   lastControlUs = micros();
   Serial.printf("Autonomous navigation: %s\n", GYROGUARD_AUTONOMY ? "ENABLED" : "DISABLED");
+  Serial.printf("Motor output: %s\n", GYROGUARD_MOTOR_ENABLE ?
+                "ENABLED (restrained bench use only)" : "LOCKED (sensor-only build)");
 }
 
 void loop() {
@@ -138,6 +144,7 @@ void loop() {
             fabsf(currentPitch) > cfg::FALL_LIMIT_DEG) {
           disarm("tilt/fall threshold");
         } else if (armed) {
+#if GYROGUARD_MOTOR_ENABLE
           gyroguard::MotionIntent intent;
 #if GYROGUARD_AUTONOMY
           // Servo sweep has no forward-looking range; hold motion until it
@@ -150,6 +157,7 @@ void loop() {
           lastCommandLeft = cfg::MOTOR_SIGN * power.left;
           lastCommandRight = cfg::MOTOR_SIGN * power.right;
           motors.set(lastCommandLeft, lastCommandRight);
+#endif
         }
       }
     }
