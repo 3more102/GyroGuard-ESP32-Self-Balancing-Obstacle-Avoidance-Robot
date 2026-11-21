@@ -1,4 +1,5 @@
 #include "GyroCore.h"
+#include "EncoderTickRate.h"
 #include <cassert>
 #include <cmath>
 #include <iostream>
@@ -151,6 +152,28 @@ int main() {
   assert(interlock.ready()); // uint32_t millis() wrap
   interlock.reset();
   assert(!interlock.ready());
+
+  // Encoder diagnostics: direction, sampling gaps, spikes and time wrap.
+  EncoderTickRateEstimator encoder(200.0f);
+  auto vel = encoder.observe(0, 0, 1000u);
+  assert(!vel.valid);
+  vel = encoder.observe(10, -6, 1100u);
+  assert(vel.valid && std::fabs(vel.left - 100.0f) < 0.01f);
+  assert(std::fabs(vel.right + 60.0f) < 0.01f);
+  vel = encoder.observe(11, -5, 1105u);
+  assert(!vel.valid); // under 20ms must retain reference
+  vel = encoder.observe(20, -10, 1200u);
+  assert(vel.valid && std::fabs(vel.right + 40.0f) < 0.01f);
+  vel = encoder.observe(21, -9, 1700u);
+  assert(!vel.valid); // stale interval, new baseline
+  vel = encoder.observe(22, -8, 1800u);
+  assert(vel.valid && std::fabs(vel.left - 10.0f) < 0.01f);
+  vel = encoder.observe(9000, -8, 1900u);
+  assert(!vel.valid); // impossible pulse rate must fail closed
+  encoder.reset();
+  assert(!encoder.observe(100, 100, 0xFFFFFFF0u).valid);
+  vel = encoder.observe(105, 95, 0x00000054u);
+  assert(vel.valid && std::fabs(vel.left - 50.0f) < 0.01f);
 
   std::cout << "PASS: balance/navigation, MPU6050 pitch, arming interlock, servo-scan and stale-data checks\n";
 }
