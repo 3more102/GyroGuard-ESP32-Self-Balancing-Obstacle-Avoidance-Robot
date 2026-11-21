@@ -1,6 +1,6 @@
 # GyroGuard ESP32 — Self-Balancing Robot + Obstacle Avoidance
 
-**Status: V0.4 software prototype; NO hardware validation, not ready for autonomous deployment.**
+**Status: V0.5 software prototype; NO hardware validation, not ready for autonomous deployment.**
 
 ESP32-WROOM-32 prototype with an MPU6050 IMU, TB6612FNG dual motor driver, two DC geared motors and **one HC-SR04 ultrasonic sensor mounted on a servo**. The design separates the inner balance loop from a conservative navigation policy. Source includes host-runnable controller tests and wiring/commissioning documentation.
 
@@ -14,7 +14,7 @@ The diagram shows the **MPU6050 → ESP32 stabilization loop**, the **single HC-
 
 - 200 Hz polled balance loop with MPU6050 gyro offset calibration, complementary pitch filter and angle PD control with optional I term.
 - Manual arming interlock requires **750 ms of continuous healthy IMU readings** within ±6° pitch and ±12°/s pitch rate; invalid samples, excess movement and disarming clear readiness. Telemetry reports `arm_ready`. Gaps over 20 ms between IMU readings reset the 750 ms timer; the arm button is checked after the current control/deadline evaluation. This is an additional software safeguard, not a hardware emergency stop.
-- Two-direction TB6612FNG motor control at 20 kHz PWM, startup-off `STBY`, physical arm/disarm button, tilt/IMU/deadline cutoffs.
+- Two-direction TB6612FNG motor control at 20 kHz PWM, startup-off `STBY`, physical arm/disarm button, tilt/IMU/deadline cutoffs. A 40 ms debounced release-to-press guard blocks arming from a boot-held button and suppresses switch bounce.
 - One interrupt-timed HC-SR04 and PWM servo scanning front/left/right only when a near-front obstacle appears. The 200 Hz balance loop is never blocked waiting for servo movement or ECHO; stale readings invalidate navigation.
 - Conservative rule-based obstacle navigation: stop/turn toward the open side near an obstacle; slow in intermediate range; steer away from close side walls. **Default disabled**, as autonomous motion needs closed-loop wheel velocity feedback.
 - Host tests for controller sign, saturation, sensor failures, servo-scan sequencing, fresh/stale directional snapshots, obstacle turns and hysteresis. V0.3 adds rejection of physically implausible/corrupt sonar ranges and cancels an active turn when side sensing becomes invalid.
@@ -56,10 +56,11 @@ By default `GYROGUARD_AUTONOMY=0` in `platformio.ini`. `GYROGUARD_AUTONOMY=1` en
 - Navigation control now refuses non-finite drive and turn intent rather than propagating invalid values through the balance controller. The sonar ISR latches the first completed ECHO pulse to reject later spurious edges before the main loop consumes it.
 - **Important:** Hardware power cutoff, motor polarity, stable upright control and encoder-based velocity regulation still require verification before autonomous driving.
 
-## V0.4 manual-arm safety improvement
+## V0.4–V0.5 manual-arm safety improvements
 
 - Before pressing the arm button, hold the chassis still and upright until telemetry shows `arm_ready=1`.
 - A fall, IMU fault, excessive pitch rate or missed deadline clears the arming readiness timer. An early button press is refused; release and press again once ready.
+- GPIO27 held LOW at startup cannot arm. Release it for at least 40 ms, wait for `arm_ready=1`, then press for at least 40 ms. Every new action requires a release and press.
 - This is a **software-only interlock**. It does not replace an independent motor power cutoff, cradle tests, verified controller signs or motor encoders.
 
 ## Roadmap
