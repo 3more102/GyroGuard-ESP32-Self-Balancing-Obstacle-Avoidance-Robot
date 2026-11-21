@@ -12,6 +12,11 @@ c++ -std=c++17 -Wall -Wextra -Werror -pedantic -fsanitize=address,undefined \
   test/host/test_wheel_velocity.cpp -o build/gyroguard_wheel_velocity_tests
 ./build/gyroguard_wheel_velocity_tests
 
+c++ -std=c++17 -Wall -Wextra -Werror -pedantic -fsanitize=address,undefined \
+  -fno-omit-frame-pointer -Ilib/GyroCore/src \
+  test/host/test_wheel_velocity_pi.cpp -o build/gyroguard_velocity_pi_tests
+./build/gyroguard_velocity_pi_tests
+
 # Source-level compilation with minimal host Arduino/Wire declarations.
 # This validates C++ syntax, NOT ESP32 SDK compatibility or device behavior.
 for source in src/main.cpp src/MotorDriver.cpp src/Mpu6050.cpp src/Ultrasonic.cpp; do
