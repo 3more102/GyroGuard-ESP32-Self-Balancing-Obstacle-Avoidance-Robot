@@ -38,6 +38,37 @@ MotorCommand BalanceController::update(float pitchDeg, float pitchRateDegPerSec,
 }
 
 
+ArmingInterlock::ArmingInterlock(float maxAbsPitchDeg,
+                               float maxAbsPitchRateDegPerSec,
+                               uint32_t stableHoldMs)
+    : maxAbsPitchDeg_(maxAbsPitchDeg),
+      maxAbsPitchRateDegPerSec_(maxAbsPitchRateDegPerSec),
+      stableHoldMs_(stableHoldMs) {}
+
+void ArmingInterlock::reset() {
+  tracking_ = false;
+  ready_ = false;
+  stableSinceMs_ = 0;
+}
+
+bool ArmingInterlock::observe(float pitchDeg, float pitchRateDegPerSec,
+                              bool imuHealthy, uint32_t nowMs) {
+  if (!imuHealthy || !std::isfinite(pitchDeg) ||
+      !std::isfinite(pitchRateDegPerSec) ||
+      std::fabs(pitchDeg) > maxAbsPitchDeg_ ||
+      std::fabs(pitchRateDegPerSec) > maxAbsPitchRateDegPerSec_) {
+    reset();
+    return false;
+  }
+  if (!tracking_) {
+    tracking_ = true;
+    stableSinceMs_ = nowMs;
+  }
+  // Unsigned subtraction preserves elapsed time across millis() rollover.
+  ready_ = (nowMs - stableSinceMs_ >= stableHoldMs_);
+  return ready_;
+}
+
 void ServoScanScheduler::reset() {
   front_ = {};
   left_ = {};
