@@ -24,6 +24,14 @@ The diagram shows the **MPU6050 → ESP32 stabilization loop**, the **single HC-
 
 This is **not TinyML or an AI-trained model**. TinyML is a future optional phase, once real obstacle and motion data have been gathered and a baseline has been validated.
 
+## V0.5 safe startup and sensor-only firmware
+
+The default build sets **`GYROGUARD_MOTOR_ENABLE=0`** and **`GYROGUARD_AUTONOMY=0`** in `platformio.ini`. With the motor lock active the firmware still reads the MPU6050, controls the scanning servo and collects optional wheel-encoder diagnostics, but it **rejects arming** and **does not call `motors.set()`**. The motor driver is held in standby; the servo remains powered and may move.
+
+A separate 40 ms release-to-press guard prevents a GPIO27 arm button held at boot from generating an arm event. After a failed or successful press, release and press again; a continuous 750 ms upright IMU readiness interval is still required. Software interlocks do not replace an independent physical motor-power cutoff.
+
+For a **supervised wheels-raised motor-polarity check only**, first complete the powerless sensor tests and install an independent motor cutoff, then deliberately change the default `GYROGUARD_MOTOR_ENABLE=0` flag to `1`, rebuild and flash. **Keep autonomy disabled.** Return the flag to `0` for sensor-only testing. Do not apply battery voltage directly to ESP32 3.3 V logic or the HC-SR04 ECHO pin. See [commissioning](docs/COMMISSIONING.md) and [power wiring](docs/POWER_WIRING.md). **No physical balancing or collision tests have been completed.**
+
 ## Requirements
 
 - Classic ESP32-WROOM-32 development board (PlatformIO `esp32dev`)
