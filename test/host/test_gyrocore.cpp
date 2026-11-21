@@ -34,6 +34,38 @@ int main() {
   assert(u.left == 0.0f && u.right == 0.0f); // recovery after faults
   c.reset();
 
+  // Button held LOW at boot is never an arm event, even after 750 ms.
+  ArmButtonGuard button;
+  assert(!button.update(true, 0u));
+  assert(!button.update(true, 1000u));
+  assert(!button.update(false, 1001u));
+  assert(!button.update(false, 1039u));
+  assert(!button.update(false, 1041u)); // release stable
+  // Reject contact bounce and repeated held-button events.
+  assert(!button.update(true, 1050u));
+  assert(!button.update(false, 1055u));
+  assert(!button.update(true, 1060u));
+  assert(!button.update(true, 1099u));
+  assert(button.update(true, 1100u));
+  assert(!button.update(true, 1600u));
+  assert(!button.update(false, 1601u));
+  assert(!button.update(false, 1641u));
+  assert(!button.update(true, 1650u));
+  assert(button.update(true, 1690u)); // intentional re-press
+
+  ArmButtonGuard releasedAtBoot;
+  assert(!releasedAtBoot.update(false, 0u));
+  assert(!releasedAtBoot.update(false, 41u));
+  assert(!releasedAtBoot.update(true, 45u));
+  assert(releasedAtBoot.update(true, 85u));
+
+  // 32-bit millis rollover must not break 40 ms release/press debounce.
+  ArmButtonGuard wrapButton;
+  assert(!wrapButton.update(false, 0xFFFFFFE0u));
+  assert(!wrapButton.update(false, 0x00000011u));
+  assert(!wrapButton.update(true, 0x00000020u));
+  assert(wrapButton.update(true, 0x00000049u));
+
   ObstacleNavigator nav;
   auto intent = nav.update({{0, false}, {100, true}, {100, true}});
   assert(intent.drive == 0 && intent.turn == 0); // fail closed
