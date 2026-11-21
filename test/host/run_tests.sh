@@ -8,6 +8,13 @@ c++ -std=c++17 -Wall -Wextra -Werror -pedantic -fsanitize=address,undefined \
   -o build/gyroguard_host_tests
 ./build/gyroguard_host_tests
 
+# Exercise optional quadrature ISR direction using simulated GPIO edges.
+c++ -std=c++17 -Wall -Wextra -Werror -pedantic -fsanitize=address,undefined \
+  -fno-omit-frame-pointer -Itest/host/stubs -Iinclude -Isrc \
+  src/WheelEncoders.cpp test/host/test_wheel_encoder.cpp \
+  -o build/gyroguard_encoder_tests
+./build/gyroguard_encoder_tests
+
 # Source-level compilation with minimal host Arduino/Wire declarations.
 # This validates C++ syntax, NOT ESP32 SDK compatibility or device behavior.
 for source in src/main.cpp src/MotorDriver.cpp src/Mpu6050.cpp src/Ultrasonic.cpp src/WheelEncoders.cpp; do
