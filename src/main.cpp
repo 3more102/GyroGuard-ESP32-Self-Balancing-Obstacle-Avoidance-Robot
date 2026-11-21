@@ -1,0 +1,127 @@
+#include <Arduino.h>
+#include <Wire.h>
+#include <cmath>
+#include "Config.h"
+#include "Mpu6050.h"
+#include "MotorDriver.h"
+#include "Ultrasonic.h"
+#include <GyroCore.h>
+
+#ifndef GYROGUARD_AUTONOMY
+#define GYROGUARD_AUTONOMY 0
+#endif
+
+Mpu6050 imu;
+MotorDriver motors;
+UltrasonicScanner sonar;
+gyroguard::BalanceController controller;
+gyroguard::ObstacleNavigator navigator;
+
+bool imuOkay = false;
+bool armed = false;
+float currentPitch = 999.0f;
+uint32_t lastControlUs = 0;
+uint32_t lastPrintMs = 0;
+uint32_t lastButtonChangeMs = 0;
+bool previousButtonSample = HIGH;
+bool stableButton = HIGH;
+
+void disarm(const char *reason) {
+  const bool wasArmed = armed;
+  armed = false;
+  motors.disable();
+  controller.reset();
+  navigator.reset();
+  if (wasArmed) {
+    Serial.print("DISARM: "); Serial.println(reason);
+  }
+}
+
+void checkButton() {
+  const bool sample = digitalRead(cfg::ARM_BUTTON);
+  const uint32_t now = millis();
+  if (sample != previousButtonSample) lastButtonChangeMs = now;
+  previousButtonSample = sample;
+  if (sample != stableButton && now - lastButtonChangeMs >= 40) {
+    stableButton = sample;
+    if (stableButton == LOW) {
+      if (armed) {
+        disarm("button");
+      } else if (imuOkay && std::isfinite(currentPitch) &&
+                 fabsf(currentPitch) < cfg::ARM_LIMIT_DEG) {
+        controller.reset();
+        navigator.reset();
+        armed = true;
+        Serial.println("ARMED (press button to disarm)");
+      } else {
+        Serial.println("ARM REFUSED: IMU fault or not upright");
+      }
+    }
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(cfg::ARM_BUTTON, INPUT_PULLUP);
+  motors.begin();
+  motors.disable();
+  Wire.begin(cfg::SDA, cfg::SCL);
+  Wire.setClock(400000);
+  Wire.setTimeOut(8);
+  Serial.println("GyroGuard ESP32 | SAFETY: motors DISABLED");
+  Serial.println("Hold chassis still, upright, with wheels off the ground.");
+  imuOkay = imu.begin() && imu.calibrateGyro();
+  if (!imuOkay) Serial.println("MPU6050 initialization/calibration failed");
+  sonar.begin();
+  lastControlUs = micros();
+  Serial.printf("Autonomous navigation: %s\n", GYROGUARD_AUTONOMY ? "ENABLED" : "DISABLED");
+}
+
+void loop() {
+  sonar.tick(); // non-blocking echoes
+  checkButton();
+  const uint32_t now = micros();
+  const uint32_t elapsed = now - lastControlUs;
+  if (elapsed >= cfg::CONTROL_PERIOD_US) {
+    lastControlUs = now;
+    if (elapsed > cfg::MAX_CONTROL_GAP_US) {
+      disarm("controller deadline missed");
+    } else if (imuOkay) {
+      ImuMeasurement m;
+      const float dt = static_cast<float>(elapsed) / 1000000.0f;
+      if (!imu.read(m, dt)) {
+        imuOkay = false;
+        disarm("IMU communication lost");
+      } else {
+        currentPitch = cfg::PITCH_SIGN * m.pitchDeg;
+        const float rate = cfg::PITCH_SIGN * m.gyroYDegPerSec;
+        if (!std::isfinite(currentPitch) ||
+            fabsf(currentPitch) > cfg::FALL_LIMIT_DEG) {
+          disarm("tilt/fall threshold");
+        } else if (armed) {
+          gyroguard::MotionIntent intent;
+#if GYROGUARD_AUTONOMY
+          // Servo sweep has no forward-looking range; hold motion until it
+          // returns to center and records a fresh front measurement.
+          if (!sonar.scanning()) intent = navigator.update(sonar.readings());
+          else navigator.reset();
+#endif
+          const auto power = controller.update(currentPitch, rate,
+                                               intent.drive, intent.turn, dt);
+          motors.set(cfg::MOTOR_SIGN * power.left, cfg::MOTOR_SIGN * power.right);
+        }
+      }
+    }
+  }
+  if (millis() - lastPrintMs >= 200u) {
+    lastPrintMs = millis();
+    const auto d = sonar.readings();
+    const char *facing = sonar.pointing() == gyroguard::LookDirection::Front ? "front" :
+                         sonar.pointing() == gyroguard::LookDirection::Left ? "left" : "right";
+    Serial.printf("arm=%d imu=%d pitch=%.2f scan=%d look=%s front=%s%.1f left=%s%.1f right=%s%.1f\n",
+                  armed, imuOkay, currentPitch, sonar.scanning(), facing,
+                  d.front.valid ? "" : "?", d.front.cm,
+                  d.left.valid ? "" : "?", d.left.cm,
+                  d.right.valid ? "" : "?", d.right.cm);
+  }
+}
