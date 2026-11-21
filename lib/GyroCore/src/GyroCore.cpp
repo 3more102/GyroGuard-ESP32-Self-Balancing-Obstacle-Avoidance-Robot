@@ -9,6 +9,24 @@ float clampFloat(float value, float low, float high) {
   return value < low ? low : (value > high ? high : value);
 }
 
+bool imuSamplePlausible(float axG, float ayG, float azG, float gyroYDps) {
+  if (!std::isfinite(axG) || !std::isfinite(ayG) ||
+      !std::isfinite(azG) || !std::isfinite(gyroYDps)) return false;
+  const float accelNormSq = axG * axG + ayG * ayG + azG * azG;
+  // 0.6..1.5 g; gyro +/-240 dps on a configured +/-250 dps sensor.
+  // Large lateral acceleration may indicate an unmodeled roll disturbance.
+  return accelNormSq >= 0.36f && accelNormSq <= 2.25f &&
+         std::fabs(ayG) <= 0.75f && std::fabs(gyroYDps) < 240.0f;
+}
+
+bool gyroCalibrationStationary(float pitchSpanDeg, float gyroMeanDps,
+                               float gyroStdDps) {
+  return std::isfinite(pitchSpanDeg) && std::isfinite(gyroMeanDps) &&
+         std::isfinite(gyroStdDps) && pitchSpanDeg >= 0.0f &&
+         pitchSpanDeg <= 3.0f && std::fabs(gyroMeanDps) <= 5.0f &&
+         gyroStdDps >= 0.0f && gyroStdDps <= 2.5f;
+}
+
 BalanceController::BalanceController(BalanceGains gains) : gains_(gains) {}
 void BalanceController::reset() { integral_ = 0.0f; }
 
