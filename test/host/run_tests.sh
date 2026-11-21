@@ -18,9 +18,17 @@ for source in src/main.cpp src/MotorDriver.cpp src/Mpu6050.cpp src/Ultrasonic.cp
   c++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only \
       -Itest/host/stubs -Iinclude -Isrc -Ilib/GyroCore/src "$source"
 done
+# Compile the motor-enabled bench branch as well; it is NOT the default.
+c++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only \
+    -DGYROGUARD_MOTOR_ENABLE=1 \
+    -Itest/host/stubs -Iinclude -Isrc -Ilib/GyroCore/src src/main.cpp
 # Compile the optional encoder-enabled branch against minimal Arduino stubs.
 c++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only \
     -DGYROGUARD_ENCODERS=1 \
+    -Itest/host/stubs -Iinclude -Isrc -Ilib/GyroCore/src src/main.cpp
+# Check encoders and motor-enabled code can compile together.
+c++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only \
+    -DGYROGUARD_ENCODERS=1 -DGYROGUARD_MOTOR_ENABLE=1 \
     -Itest/host/stubs -Iinclude -Isrc -Ilib/GyroCore/src src/main.cpp
 python3 -m unittest discover -s test/host -p "test_*.py" -v
 echo "PASS: ESP32 source syntax check with host interface stubs"
