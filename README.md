@@ -1,6 +1,6 @@
 # GyroGuard ESP32 — Self-Balancing Robot + Obstacle Avoidance
 
-**Status: V0.4 software prototype; NO hardware validation, not ready for autonomous deployment.**
+**Status: V0.5 software prototype; NO hardware validation, not ready for autonomous deployment.**
 
 ESP32-WROOM-32 prototype with an MPU6050 IMU, TB6612FNG dual motor driver, two DC geared motors and **one HC-SR04 ultrasonic sensor mounted on a servo**. The design separates the inner balance loop from a conservative navigation policy. Source includes host-runnable controller tests and wiring/commissioning documentation.
 
@@ -20,6 +20,7 @@ The diagram shows the **MPU6050 → ESP32 stabilization loop**, the **single HC-
 - Host tests for controller sign, saturation, sensor failures, servo-scan sequencing, fresh/stale directional snapshots, obstacle turns and hysteresis. V0.3 adds rejection of physically implausible/corrupt sonar ranges and cancels an active turn when side sensing becomes invalid.
 - GitHub Actions CI runs C++ host safety tests, telemetry tests, firmware source syntax checks and the actual PlatformIO ESP32 build. The build publishes firmware artifacts when successful.
 - Offline serial telemetry reporting (`tools/bench_report.py`) summarizes available pitch/range samples, IMU fault flags and disarm events for supervised bench commissioning.
+- **V0.5 commissioning telemetry** adds windowed 200 Hz controller period min/max, control-cycle counts, cumulative missed deadlines, pitch rate and normalized motor **command** values. The parser still accepts older V0.4 logs and strict mode now reports missed deadlines as faults.
 
 This is **not TinyML or an AI-trained model**. TinyML is a future optional phase, once real obstacle and motion data have been gathered and a baseline has been validated.
 
@@ -64,6 +65,17 @@ By default `GYROGUARD_AUTONOMY=0` in `platformio.ini`. `GYROGUARD_AUTONOMY=1` en
 - A fall, IMU fault, excessive pitch rate or missed deadline clears the arming readiness timer. An early button press is refused; release and press again once ready.
 - This is a **software-only interlock**. It does not replace an independent motor power cutoff, cradle tests, verified controller signs or motor encoders.
 
+## V0.5 timing and balancing diagnostic telemetry
+
+Each 200 ms serial status line still includes `arm`, `imu`, `pitch`, `arm_ready`, and the servo-sonar measurements. It now also includes:
+
+- `t_ms`: ESP32 uptime in milliseconds (32-bit wraparound); `ctl_n`: controller ticks since the last log.
+- `ctl_min_us` / `ctl_max_us`: shortest and longest **observed control start-to-start interval** in that log window, not the C++ computation time; zero when there was no controller tick.
+- `ctl_misses`: cumulative control intervals longer than the configured 30,000 µs safety limit. **Any** observed miss is considered a fault by `--strict`, even if it happened before the current log began.
+- `rate_dps`: last MPU6050 pitch angular rate; `cmd_l` / `cmd_r`: last commanded, normalized motor efforts before individual wheel polarity settings and the TB6612 driver, **not measured motor speeds or PWM voltage**.
+
+Read the report using `python3 tools/bench_report.py bench.log --strict --json`. The min/max and cycle totals reflect only captured log windows; serial sampling cannot certify jitter, balancing stability, or real-time safety. **Autonomy stays disabled**, and no encoder-based speed feedback is present.
+
 ## Roadmap
 
 1. **Bench validation:** hardware wiring, PWM polarity, IMU pitch direction, sensor range tests, fail-stop behavior.
@@ -85,6 +97,7 @@ By default `GYROGUARD_AUTONOMY=0` in `platformio.ini`. `GYROGUARD_AUTONOMY=1` en
 - Wait for the servo to settle at each angle and trigger the HC-SR04 at least 65 ms apart. Sonar echoes are captured by GPIO interrupts; no blocking `pulseIn`.
 - Only allow navigation decisions again after the center reading returns. Choose the side with more clearance if both side readings are valid and fresh; missing/stale forward readings stop navigation intent.
 - **Important:** Servo movement induces dynamic vibrations and a single transducer cannot see all directions simultaneously. This is a rule-based prototype, not an AI model or validated autonomous system.
+
 ## Optional wheel-encoder diagnostics (experimental)
 
 The `esp32dev-encoder-monitor` PlatformIO environment adds **monitoring only**, not closed-loop velocity PID or autonomous movement. It is off in the default `esp32dev` build. The monitor counts rising and falling transitions of each encoder's A channel while sampling B for direction (2× decoding). The firmware reports `enc_valid`, `left_tps`, and `right_tps` every 200 ms. Rates are **ticks per second**, not RPM.
