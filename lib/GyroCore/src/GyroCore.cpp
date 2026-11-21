@@ -49,6 +49,7 @@ void ArmingInterlock::reset() {
   tracking_ = false;
   ready_ = false;
   stableSinceMs_ = 0;
+  lastSampleMs_ = 0;
 }
 
 bool ArmingInterlock::observe(float pitchDeg, float pitchRateDegPerSec,
@@ -60,10 +61,14 @@ bool ArmingInterlock::observe(float pitchDeg, float pitchRateDegPerSec,
     reset();
     return false;
   }
+  // A missing sample must break the continuous hold even if the next sample
+  // looks upright. Typical IMU period is 5ms; reject gaps over 20ms.
+  if (tracking_ && nowMs - lastSampleMs_ > 20u) reset();
   if (!tracking_) {
     tracking_ = true;
     stableSinceMs_ = nowMs;
   }
+  lastSampleMs_ = nowMs;
   // Unsigned subtraction preserves elapsed time across millis() rollover.
   ready_ = (nowMs - stableSinceMs_ >= stableHoldMs_);
   return ready_;
