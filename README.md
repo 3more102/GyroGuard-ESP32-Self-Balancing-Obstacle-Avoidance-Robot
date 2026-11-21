@@ -62,6 +62,14 @@ By default `GYROGUARD_AUTONOMY=0` in `platformio.ini`. `GYROGUARD_AUTONOMY=1` en
 - A fall, IMU fault, excessive pitch rate or missed deadline clears the arming readiness timer. An early button press is refused; release and press again once ready.
 - This is a **software-only interlock**. It does not replace an independent motor power cutoff, cradle tests, verified controller signs or motor encoders.
 
+## Optional wheel-encoder diagnostics (V0.5 development branch)
+
+- Optional two quadrature wheel encoders: left A/B = GPIO35/14, right A/B = GPIO39/13; 3.3 V inputs only. GPIO35/39 need external pull-ups when the sensors require pull-ups.
+- Off by default: `GYROGUARD_ENCODERS=0` in `platformio.ini`. Set to `1` only after hardware wiring checks.
+- Adds 10 Hz UART fields `enc_left`, `enc_right`, `enc_l_tps`, `enc_r_tps`, `enc_valid`. This counts A-channel rising edges, **not** x4 quadrature or wheel RPM.
+- Encoder data **does not control the motors**. No velocity PID, encoder health interlock or odometry is implemented. The baseline 200 Hz balance loop and default-disabled autonomous navigation are unchanged.
+- Read [encoder wiring, power safeguards and calibration instructions](docs/ENCODERS.md) before enabling the option. Hardware operation remains unverified.
+
 ## Roadmap
 
 1. **Bench validation:** hardware wiring, PWM polarity, IMU pitch direction, sensor range tests, fail-stop behavior.
