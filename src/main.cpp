@@ -32,6 +32,15 @@ gyroguard::ArmingInterlock armingInterlock(
 bool imuOkay = false;
 bool armed = false;
 float currentPitch = 999.0f;
+float currentPitchRate = 0.0f;
+float lastCommandLeft = 0.0f;
+float lastCommandRight = 0.0f;
+// Observed start-to-start controller periods, accumulated over each telemetry
+// reporting window. These are NOT measured computation execution times.
+uint32_t controlWindowMinUs = UINT32_MAX;
+uint32_t controlWindowMaxUs = 0;
+uint32_t controlWindowCycles = 0;
+uint32_t controlDeadlineMisses = 0;
 uint32_t lastControlUs = 0;
 uint32_t lastPrintMs = 0;
 uint32_t lastButtonChangeMs = 0;
@@ -42,6 +51,8 @@ void disarm(const char *reason) {
   const bool wasArmed = armed;
   armed = false;
   motors.disable();
+  lastCommandLeft = 0.0f;
+  lastCommandRight = 0.0f;
   controller.reset();
   navigator.reset();
   armingInterlock.reset();
@@ -101,12 +112,16 @@ void loop() {
   const uint32_t elapsed = now - lastControlUs;
   if (elapsed >= cfg::CONTROL_PERIOD_US) {
     lastControlUs = now;
+    if (elapsed < controlWindowMinUs) controlWindowMinUs = elapsed;
+    if (elapsed > controlWindowMaxUs) controlWindowMaxUs = elapsed;
+    ++controlWindowCycles;
 #if GYROGUARD_ENCODERS
     uint32_t leftTicks = 0, rightTicks = 0;
     wheelEncoders.snapshot(leftTicks, rightTicks);
     latestWheelRate = wheelVelocity.update(leftTicks, rightTicks, now);
 #endif
     if (elapsed > cfg::MAX_CONTROL_GAP_US) {
+      ++controlDeadlineMisses;
       disarm("controller deadline missed");
     } else if (imuOkay) {
       ImuMeasurement m;
@@ -117,6 +132,7 @@ void loop() {
       } else {
         currentPitch = cfg::PITCH_SIGN * m.pitchDeg;
         const float rate = cfg::PITCH_SIGN * m.gyroYDegPerSec;
+        currentPitchRate = rate;
         armingInterlock.observe(currentPitch, rate, imuOkay, millis());
         if (!std::isfinite(currentPitch) ||
             fabsf(currentPitch) > cfg::FALL_LIMIT_DEG) {
@@ -131,7 +147,9 @@ void loop() {
 #endif
           const auto power = controller.update(currentPitch, rate,
                                                intent.drive, intent.turn, dt);
-          motors.set(cfg::MOTOR_SIGN * power.left, cfg::MOTOR_SIGN * power.right);
+          lastCommandLeft = cfg::MOTOR_SIGN * power.left;
+          lastCommandRight = cfg::MOTOR_SIGN * power.right;
+          motors.set(lastCommandLeft, lastCommandRight);
         }
       }
     }
@@ -143,12 +161,26 @@ void loop() {
     const auto d = sonar.readings();
     const char *facing = sonar.pointing() == gyroguard::LookDirection::Front ? "front" :
                          sonar.pointing() == gyroguard::LookDirection::Left ? "left" : "right";
-    Serial.printf("arm=%d imu=%d pitch=%.2f arm_ready=%d scan=%d look=%s front=%s%.1f left=%s%.1f right=%s%.1f\n",
-                  armed, imuOkay, currentPitch, armingInterlock.ready(),
-                  sonar.scanning(), facing,
-                  d.front.valid ? "" : "?", d.front.cm,
-                  d.left.valid ? "" : "?", d.left.cm,
-                  d.right.valid ? "" : "?", d.right.cm);
+    const uint32_t ctlMin = controlWindowCycles ? controlWindowMinUs : 0u;
+    Serial.printf(
+        "arm=%d imu=%d pitch=%.2f arm_ready=%d scan=%d look=%s "
+        "front=%s%.1f left=%s%.1f right=%s%.1f "
+        "t_ms=%lu ctl_n=%lu ctl_min_us=%lu ctl_max_us=%lu "
+        "ctl_misses=%lu rate_dps=%.2f cmd_l=%.3f cmd_r=%.3f\n",
+        armed, imuOkay, currentPitch, armingInterlock.ready(),
+        sonar.scanning(), facing,
+        d.front.valid ? "" : "?", d.front.cm,
+        d.left.valid ? "" : "?", d.left.cm,
+        d.right.valid ? "" : "?", d.right.cm,
+        static_cast<unsigned long>(lastPrintMs),
+        static_cast<unsigned long>(controlWindowCycles),
+        static_cast<unsigned long>(ctlMin),
+        static_cast<unsigned long>(controlWindowMaxUs),
+        static_cast<unsigned long>(controlDeadlineMisses),
+        currentPitchRate, lastCommandLeft, lastCommandRight);
+    controlWindowCycles = 0;
+    controlWindowMinUs = UINT32_MAX;
+    controlWindowMaxUs = 0;
 #if GYROGUARD_ENCODERS
     Serial.printf("enc_valid=%d left_tps=%.1f right_tps=%.1f (diagnostic)\n",
                   latestWheelRate.valid, latestWheelRate.leftTicksPerSec,
