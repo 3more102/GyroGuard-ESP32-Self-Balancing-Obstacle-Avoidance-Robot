@@ -9,6 +9,11 @@ constexpr int MOTOR_L_IN1 = 18, MOTOR_L_IN2 = 19, MOTOR_L_PWM = 25;
 constexpr int MOTOR_R_IN1 = 16, MOTOR_R_IN2 = 17, MOTOR_R_PWM = 26;
 constexpr int MOTOR_STBY = 23;
 constexpr int ARM_BUTTON = 27; // button to GND, internal pull-up
+// Optional 3.3V encoder diagnostics: GPIO35/36 require external pull-ups
+// when attached to open-collector/open-drain A-channel signals.
+constexpr int ENC_LEFT_A = 35, ENC_LEFT_B = 13;
+constexpr int ENC_RIGHT_A = 36, ENC_RIGHT_B = 14;
+constexpr int ENC_LEFT_SIGN = 1, ENC_RIGHT_SIGN = 1; // verify by hand
 constexpr int SONAR_TRIG = 32, SONAR_ECHO = 34;
 constexpr int SERVO_PWM = 33;  // external 5V servo supply; common GND
 constexpr int SERVO_FRONT_DEG = 90;

@@ -83,3 +83,14 @@ By default `GYROGUARD_AUTONOMY=0` in `platformio.ini`. `GYROGUARD_AUTONOMY=1` en
 - Wait for the servo to settle at each angle and trigger the HC-SR04 at least 65 ms apart. Sonar echoes are captured by GPIO interrupts; no blocking `pulseIn`.
 - Only allow navigation decisions again after the center reading returns. Choose the side with more clearance if both side readings are valid and fresh; missing/stale forward readings stop navigation intent.
 - **Important:** Servo movement induces dynamic vibrations and a single transducer cannot see all directions simultaneously. This is a rule-based prototype, not an AI model or validated autonomous system.
+## Optional wheel-encoder diagnostics (experimental)
+
+The `esp32dev-encoder-monitor` PlatformIO environment adds **monitoring only**, not closed-loop velocity PID or autonomous movement. It is off in the default `esp32dev` build. The monitor counts rising and falling transitions of each encoder's A channel while sampling B for direction (2× decoding). The firmware reports `enc_valid`, `left_tps`, and `right_tps` every 200 ms. Rates are **ticks per second**, not RPM.
+
+```bash
+pio run -e esp32dev-encoder-monitor
+pio run -e esp32dev-encoder-monitor -t upload
+pio device monitor -b 115200
+```
+
+Use GPIO35/A + GPIO13/B for left, and GPIO36/A + GPIO14/B for right. Signals must be 3.3 V safe; GPIO35/36 are input-only and have **no built-in pull-ups**, so add external 3.3 V pull-ups if your encoder needs them. With motor supply disconnected, spin each wheel by hand to confirm its channel and sign before enabling motor power. Reverse `ENC_LEFT_SIGN` or `ENC_RIGHT_SIGN` only after testing. **Zero ticks with `enc_valid=1` does not prove that an encoder is connected.** This software cannot hold position or control velocity until the encoder electrical interface, counts-per-wheel-revolution and an outer-loop controller have been validated on physical hardware.

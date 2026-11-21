@@ -10,6 +10,16 @@
 #ifndef GYROGUARD_AUTONOMY
 #define GYROGUARD_AUTONOMY 0
 #endif
+#ifndef GYROGUARD_ENCODERS
+#define GYROGUARD_ENCODERS 0
+#endif
+#if GYROGUARD_ENCODERS
+#include "WheelEncoders.h"
+#include <WheelVelocity.h>
+WheelEncoders wheelEncoders;
+gyroguard::WheelVelocityEstimator wheelVelocity;
+gyroguard::WheelRate latestWheelRate;
+#endif
 
 Mpu6050 imu;
 MotorDriver motors;
@@ -77,6 +87,10 @@ void setup() {
   imuOkay = imu.begin() && imu.calibrateGyro();
   if (!imuOkay) Serial.println("MPU6050 initialization/calibration failed");
   sonar.begin();
+#if GYROGUARD_ENCODERS
+  wheelEncoders.begin();
+  Serial.println("Encoder monitor ON; no motor velocity feedback");
+#endif
   lastControlUs = micros();
   Serial.printf("Autonomous navigation: %s\n", GYROGUARD_AUTONOMY ? "ENABLED" : "DISABLED");
 }
@@ -88,6 +102,11 @@ void loop() {
   const uint32_t elapsed = now - lastControlUs;
   if (elapsed >= cfg::CONTROL_PERIOD_US) {
     lastControlUs = now;
+#if GYROGUARD_ENCODERS
+    uint32_t leftTicks = 0, rightTicks = 0;
+    wheelEncoders.snapshot(leftTicks, rightTicks);
+    latestWheelRate = wheelVelocity.update(leftTicks, rightTicks, now);
+#endif
     if (elapsed > cfg::MAX_CONTROL_GAP_US) {
       disarm("controller deadline missed");
     } else if (imuOkay) {
@@ -129,5 +148,10 @@ void loop() {
                   d.front.valid ? "" : "?", d.front.cm,
                   d.left.valid ? "" : "?", d.left.cm,
                   d.right.valid ? "" : "?", d.right.cm);
+#if GYROGUARD_ENCODERS
+    Serial.printf("enc_valid=%d left_tps=%.1f right_tps=%.1f (diagnostic)\n",
+                  latestWheelRate.valid, latestWheelRate.leftTicksPerSec,
+                  latestWheelRate.rightTicksPerSec);
+#endif
   }
 }

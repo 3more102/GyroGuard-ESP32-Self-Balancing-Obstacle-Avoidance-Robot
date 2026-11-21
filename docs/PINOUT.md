@@ -19,3 +19,12 @@
 - MPU6050 AD0=GND (I2C 0x68); use 3.3 V supply **only if your specific breakout supports it**. X axis must face forward, Z up for pitch in this firmware.
 - GPIO33 provides 50 Hz servo pulses from LEDC channel 2; channels 0 and 1 control motors at 20 kHz. LEDC driver calls target Arduino-ESP32 2.x.
 - The servo scans sequentially, **not all three directions at once**. Side samples can be stale between sweeps. Never assume complete/instant obstacle coverage; wheel encoders and a physical emergency stop are recommended for safe autonomous testing.
+
+## Optional wheel encoders (monitoring build only)
+
+| Encoder | A input (CHANGE interrupt) | B input (direction) |
+|---|---:|---:|
+| Left | GPIO35 | GPIO13 |
+| Right | GPIO36 | GPIO14 |
+
+Both A and B outputs must stay within the ESP32's **0–3.3 V logic range**; level-shift 5 V signals. GPIO35 and GPIO36 are input-only with no internal pull-up or pull-down support: if the sensor output is open-collector/open-drain, fit external pull-ups to 3.3 V. GPIO13/14 may conflict with use of JTAG. These pins are unused by the default build. Run `pio run -e esp32dev-encoder-monitor` only after wiring checks. This is not a closed-loop velocity controller.
