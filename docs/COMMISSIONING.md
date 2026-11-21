@@ -5,7 +5,7 @@
 1. Confirm classic ESP32-WROOM-32 dev board, MPU6050, TB6612FNG, **one HC-SR04 on a servo** (e.g. SG90), 2 motors, button.
 2. Verify voltage shift on the **single sonar ECHO** and a sufficiently rated **external regulated 5 V servo supply**, all grounds common. Never feed 5 V ECHO into the ESP32.
 3. Place the servo at neutral with the sensor facing forward. Check clearance at 45° (right), 90° (front), 135° (left). Limit servo travel for your bracket; avoid mechanical binding.
-4. Run pio run -t upload; start pio device monitor -b 115200. On boot all motors remain disabled and the MPU6050 calibrates while stationary.
+4. Run `pio run -t upload`; start `pio device monitor -b 115200`. On boot motors remain disabled while the MPU6050 calibrates. Hold the chassis **upright and absolutely still for the full ~1.2-second sampling window**. If it reports initialization/calibration failure, do not arm: check wiring, mounting and vibration, then reboot while stationary.
 5. Confirm imu=1, pitch sign (leaning forward positive), and serial sonar look= positions. A near obstacle in front should trigger a left/right sweep and a return to front; check the measured sides match physical directions.
 6. With motor power isolated, deliberately unplug ECHO or move an object out of range; the sonar must show invalid ? readings, and navigation command should not move forward.
 7. With chassis in a mechanical cradle and servo clear of hands, arm via GPIO27 button and confirm that a positive forward pitch makes both wheels drive forward. Set PITCH_SIGN, MOTOR_SIGN, and each wheel sign accordingly.
@@ -19,3 +19,10 @@
 - The single sonar is triggered at least 65 ms apart. Servo angle changes allow at least 220 ms settling before a new ping. Real servo speed, vibrations, mechanical backlash and reflected sonar geometry must be measured.
 - Normally sonar stays centered, measuring forward. On an obstacle under 50 cm, it temporarily scans left -> right -> front and temporarily suspends navigation. A new sweep is rate-limited to 1.5 seconds.
 - Sonar is neither a full collision sensor nor a substitute for odometry; side readings are snapshots. Failures may cause collisions. No certified real-time deadline guarantees.
+
+
+### Stationary-start calibration guard
+
+Startup calibration now rejects samples when acceleration magnitude is outside 0.85–1.15 g, pitch is beyond ±6°, the Y-axis side acceleration exceeds ±0.15 g, any gyro axis exceeds ±5°/s, or pitch drifts over 2° from the first sample. The final gyro-Y bias is accepted only after at least 30 samples and gyro-Y standard deviation no greater than 1.5°/s. Normal firmware collects 300 readings. These are conservative software screening limits, **not** proof of sensor accuracy, an independent safety mechanism, or proof that the physical robot is stable.
+
+If calibration fails, `imuOkay` remains false and the arm button must be refused. Power-cycle and recalibrate upright; do not bypass these checks to get the motors running.
