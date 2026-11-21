@@ -30,30 +30,41 @@ bool Mpu6050::begin() {
   filtered_ = false;
   return true;
 }
-bool Mpu6050::readRaw(int16_t &ax, int16_t &az, int16_t &gy) {
+bool Mpu6050::readRaw(int16_t &ax, int16_t &ay, int16_t &az,
+                      int16_t &gx, int16_t &gy, int16_t &gz) {
   uint8_t b[14];
   if (!readRegisters(0x3B, b, sizeof(b))) return false;
   ax = static_cast<int16_t>((static_cast<uint16_t>(b[0]) << 8) | b[1]);
+  ay = static_cast<int16_t>((static_cast<uint16_t>(b[2]) << 8) | b[3]);
   az = static_cast<int16_t>((static_cast<uint16_t>(b[4]) << 8) | b[5]);
+  gx = static_cast<int16_t>((static_cast<uint16_t>(b[8]) << 8) | b[9]);
   gy = static_cast<int16_t>((static_cast<uint16_t>(b[10]) << 8) | b[11]);
+  gz = static_cast<int16_t>((static_cast<uint16_t>(b[12]) << 8) | b[13]);
   return true;
 }
 bool Mpu6050::calibrateGyro(unsigned samples) {
-  if (samples < 10) return false;
-  double sum = 0.0;
+  if (samples < 30) return false;
+  gyroguard::GyroCalibrationGuard guard;
   for (unsigned i = 0; i < samples; ++i) {
-    int16_t ax, az, gy;
-    if (!readRaw(ax, az, gy)) return false;
-    sum += static_cast<float>(gy) / 131.0f;
+    int16_t ax, ay, az, gx, gy, gz;
+    if (!readRaw(ax, ay, az, gx, gy, gz)) return false;
+    if (!guard.observe(static_cast<float>(ax) / 16384.0f,
+                       static_cast<float>(ay) / 16384.0f,
+                       static_cast<float>(az) / 16384.0f,
+                       static_cast<float>(gx) / 131.0f,
+                       static_cast<float>(gy) / 131.0f,
+                       static_cast<float>(gz) / 131.0f)) return false;
     delay(4);
   }
-  gyroYBias_ = static_cast<float>(sum / samples);
+  float bias = 0.0f;
+  if (!guard.bias(bias)) return false;
+  gyroYBias_ = bias;
   filtered_ = false;
   return true;
 }
 bool Mpu6050::read(ImuMeasurement &out, float dtSec) {
-  int16_t ax, az, gy;
-  if (!readRaw(ax, az, gy)) return false;
+  int16_t ax, ay, az, gx, gy, gz;
+  if (!readRaw(ax, ay, az, gx, gy, gz)) return false;
   const float measuredPitch = gyroguard::pitchFromAccelXZ(
       static_cast<float>(ax), static_cast<float>(az));
   const float gyroY = static_cast<float>(gy) / 131.0f - gyroYBias_;
