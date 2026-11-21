@@ -14,7 +14,7 @@ The diagram shows the **MPU6050 → ESP32 stabilization loop**, the **single HC-
 
 - 200 Hz polled balance loop with MPU6050 gyro offset calibration, complementary pitch filter and angle PD control with optional I term.
 - Manual arming interlock requires **750 ms of continuous healthy IMU readings** within ±6° pitch and ±12°/s pitch rate; invalid samples, excess movement and disarming clear readiness. Telemetry reports `arm_ready`. Gaps over 20 ms between IMU readings reset the 750 ms timer; the arm button is checked after the current control/deadline evaluation. This is an additional software safeguard, not a hardware emergency stop.
-- Two-direction TB6612FNG motor control at 20 kHz PWM, startup-off `STBY`, physical arm/disarm button, tilt/IMU/deadline cutoffs.
+- Two-direction TB6612FNG motor control at 20 kHz PWM, startup-off `STBY`, physical arm/disarm button, tilt/IMU/deadline cutoffs. **The normal V0.5 firmware is motor-locked at compile time**: manual arming is refused and even accidental calls to `MotorDriver::set()` disable outputs unless deliberately rebuilt with motor enable.
 - One interrupt-timed HC-SR04 and PWM servo scanning front/left/right only when a near-front obstacle appears. The 200 Hz balance loop is never blocked waiting for servo movement or ECHO; stale readings invalidate navigation.
 - Conservative rule-based obstacle navigation: stop/turn toward the open side near an obstacle; slow in intermediate range; steer away from close side walls. **Default disabled**, as autonomous motion needs closed-loop wheel velocity feedback.
 - Host tests for controller sign, saturation, sensor failures, servo-scan sequencing, fresh/stale directional snapshots, obstacle turns and hysteresis. V0.3 adds rejection of physically implausible/corrupt sonar ranges and cancels an active turn when side sensing becomes invalid.
@@ -30,14 +30,14 @@ This is **not TinyML or an AI-trained model**. TinyML is a future optional phase
 - MPU6050 (AD0=GND), TB6612FNG, 2 DC geared motors, 1 HC-SR04 + 1 hobby servo (e.g. SG90), arm button
 - Suitable battery/regulator, mechanical chassis, common ground, 5V-to-3.3V ECHO level shifting, electrical protection
 
-See [pinout and electrical warnings](docs/PINOUT.md), then [commissioning checklist](docs/COMMISSIONING.md).
+See [pinout and electrical warnings](docs/PINOUT.md), the [motor-output lock and staged bench guide](docs/MOTOR_LOCK_BENCH.md), then [commissioning checklist](docs/COMMISSIONING.md).
 
 **Power/12 V battery decisions:** [power distribution and voltage limits](docs/POWER_WIRING.md). Record measured hardware safety results in the [V0.5 bench-validation record](docs/BENCH_VALIDATION_RECORD.md) before any floor or autonomous testing.
 
 ## Build and test
 
 1. Install VS Code + PlatformIO, open this directory.
-2. Upload: `pio run -t upload` (set correct serial port as needed).
+2. Upload: `pio run -t upload` (set correct serial port as needed). **Default: `GYROGUARD_MOTOR_ENABLE=0`, no motor actuation.** Confirm `motor_en=0` and `Motor outputs: LOCKED` on UART. A supervised motor test requires deliberate recompilation with `GYROGUARD_MOTOR_ENABLE=1` and a physical cutoff; see the bench guide.
 3. View telemetry: `pio device monitor -b 115200`.
 4. Run C++/Python host regression tests (Linux/macOS with g++, Python 3): `bash test/host/run_tests.sh`.
 5. After supervised, wheels-off-ground tests, capture serial diagnostics: `pio device monitor -b 115200 > bench.log` (stop with Ctrl+C). Summarize the log with `python3 tools/bench_report.py bench.log --json`. Use `--strict` to exit with code 2 for missing telemetry, IMU fault samples or recorded disarms. **A report with no recorded faults does not establish safe hardware operation.**
@@ -50,7 +50,7 @@ The project pins the **official PlatformIO Espressif32 6.12.0** (Arduino-ESP32 2
 
 `HC-SR04 mounted on servo -> front/left/right scan scheduler -> obstacle policy -> bounded drive/turn intent -> balance controller`
 
-By default `GYROGUARD_AUTONOMY=0` in `platformio.ini`. `GYROGUARD_AUTONOMY=1` enables experimental navigation **only after safe hardware validation**. Motor sign, mount orientation, controller gains and motor PWM cap are in `include/Config.h` and `lib/GyroCore/src/GyroCore.h`.
+By default `GYROGUARD_MOTOR_ENABLE=0` and `GYROGUARD_AUTONOMY=0` in `platformio.ini`. `GYROGUARD_AUTONOMY=1` enables experimental navigation **only after safe hardware validation**. Motor sign, mount orientation, controller gains and motor PWM cap are in `include/Config.h` and `lib/GyroCore/src/GyroCore.h`.
 
 ## Continuous integration and fault hardening
 
