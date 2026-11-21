@@ -34,6 +34,37 @@ int main() {
   assert(u.left == 0.0f && u.right == 0.0f); // recovery after faults
   c.reset();
 
+  // Startup button held LOW cannot create an arm event.
+  ArmButtonGuard button;
+  assert(!button.update(true, 0u));
+  assert(!button.update(true, 1000u));
+  assert(!button.update(false, 1001u));
+  assert(!button.update(false, 1039u));
+  assert(!button.update(false, 1041u)); // stable release
+  assert(!button.update(true, 1050u));
+  assert(!button.update(false, 1055u)); // contact bounce
+  assert(!button.update(true, 1060u));
+  assert(!button.update(true, 1099u));
+  assert(button.update(true, 1100u)); // fresh stable press
+  assert(!button.update(true, 1600u)); // held button is not a repeat
+  assert(!button.update(false, 1601u));
+  assert(!button.update(false, 1641u));
+  assert(!button.update(true, 1650u));
+  assert(button.update(true, 1690u)); // intentional new press
+
+  ArmButtonGuard releasedAtBoot;
+  assert(!releasedAtBoot.update(false, 0u));
+  assert(!releasedAtBoot.update(false, 41u));
+  assert(!releasedAtBoot.update(true, 45u));
+  assert(releasedAtBoot.update(true, 85u));
+
+  // Debounce timestamps remain correct across uint32_t rollover.
+  ArmButtonGuard rolloverButton;
+  assert(!rolloverButton.update(false, 0xFFFFFFE0u));
+  assert(!rolloverButton.update(false, 0x00000011u));
+  assert(!rolloverButton.update(true, 0x00000020u));
+  assert(rolloverButton.update(true, 0x00000049u));
+
   ObstacleNavigator nav;
   auto intent = nav.update({{0, false}, {100, true}, {100, true}});
   assert(intent.drive == 0 && intent.turn == 0); // fail closed
