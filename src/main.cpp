@@ -11,6 +11,15 @@
 #define GYROGUARD_AUTONOMY 0
 #endif
 
+// A default-off commissioning lock: no motor arming or TB6612 output.
+// Set to 1 ONLY for restrained, wheels-off-ground motor polarity checks.
+#ifndef GYROGUARD_MOTOR_ENABLE
+#define GYROGUARD_MOTOR_ENABLE 0
+#endif
+#if GYROGUARD_MOTOR_ENABLE != 0 && GYROGUARD_MOTOR_ENABLE != 1
+#error "GYROGUARD_MOTOR_ENABLE must be 0 or 1"
+#endif
+
 Mpu6050 imu;
 MotorDriver motors;
 UltrasonicScanner sonar;
@@ -48,6 +57,9 @@ void checkButton() {
   if (sample != stableButton && now - lastButtonChangeMs >= 40) {
     stableButton = sample;
     if (stableButton == LOW) {
+#if !GYROGUARD_MOTOR_ENABLE
+      Serial.println("ARM REFUSED: motor output locked (GYROGUARD_MOTOR_ENABLE=0)");
+#else
       if (armed) {
         disarm("button");
       } else if (imuOkay && armingInterlock.ready() &&
@@ -60,6 +72,7 @@ void checkButton() {
       } else {
         Serial.println("ARM REFUSED: IMU fault or not steadily upright for 750 ms");
       }
+#endif
     }
   }
 }
@@ -79,6 +92,7 @@ void setup() {
   sonar.begin();
   lastControlUs = micros();
   Serial.printf("Autonomous navigation: %s\n", GYROGUARD_AUTONOMY ? "ENABLED" : "DISABLED");
+  Serial.printf("Motor output: %s\n", GYROGUARD_MOTOR_ENABLE ? "ENABLED (restrained testing only)" : "LOCKED (sensor-only commissioning)");
 }
 
 void loop() {
@@ -110,9 +124,14 @@ void loop() {
           if (!sonar.scanning()) intent = navigator.update(sonar.readings());
           else navigator.reset();
 #endif
+#if GYROGUARD_MOTOR_ENABLE
           const auto power = controller.update(currentPitch, rate,
                                                intent.drive, intent.turn, dt);
           motors.set(cfg::MOTOR_SIGN * power.left, cfg::MOTOR_SIGN * power.right);
+#else
+          // Defense in depth: compiling with the lock never calls motors.set().
+          (void)intent;
+#endif
         }
       }
     }
