@@ -10,9 +10,12 @@ c++ -std=c++17 -Wall -Wextra -Werror -pedantic -fsanitize=address,undefined \
 
 # Source-level compilation with minimal host Arduino/Wire declarations.
 # This validates C++ syntax, NOT ESP32 SDK compatibility or device behavior.
-for source in src/main.cpp src/MotorDriver.cpp src/Mpu6050.cpp src/Ultrasonic.cpp; do
-  c++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only \
-      -Itest/host/stubs -Iinclude -Isrc -Ilib/GyroCore/src "$source"
+for motor_enabled in 0 1; do
+  for source in src/main.cpp src/MotorDriver.cpp src/Mpu6050.cpp src/Ultrasonic.cpp; do
+    c++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only \
+        -DGYROGUARD_MOTOR_ENABLE="${motor_enabled}" -DGYROGUARD_AUTONOMY=0 \
+        -Itest/host/stubs -Iinclude -Isrc -Ilib/GyroCore/src "$source"
+  done
 done
 python3 -m unittest discover -s test/host -p "test_*.py" -v
 echo "PASS: ESP32 source syntax check with host interface stubs"
