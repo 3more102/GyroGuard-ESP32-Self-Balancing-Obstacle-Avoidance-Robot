@@ -26,6 +26,7 @@ MotorDriver motors;
 UltrasonicScanner sonar;
 gyroguard::BalanceController controller;
 gyroguard::ObstacleNavigator navigator;
+gyroguard::ArmButtonGuard armButton;
 gyroguard::ArmingInterlock armingInterlock(
     cfg::ARM_LIMIT_DEG, cfg::ARM_MAX_RATE_DPS, cfg::ARM_STABLE_MS);
 
@@ -34,9 +35,6 @@ bool armed = false;
 float currentPitch = 999.0f;
 uint32_t lastControlUs = 0;
 uint32_t lastPrintMs = 0;
-uint32_t lastButtonChangeMs = 0;
-bool previousButtonSample = HIGH;
-bool stableButton = HIGH;
 
 void disarm(const char *reason) {
   const bool wasArmed = armed;
@@ -51,26 +49,20 @@ void disarm(const char *reason) {
 }
 
 void checkButton() {
-  const bool sample = digitalRead(cfg::ARM_BUTTON);
-  const uint32_t now = millis();
-  if (sample != previousButtonSample) lastButtonChangeMs = now;
-  previousButtonSample = sample;
-  if (sample != stableButton && now - lastButtonChangeMs >= 40) {
-    stableButton = sample;
-    if (stableButton == LOW) {
-      if (armed) {
-        disarm("button");
-      } else if (imuOkay && armingInterlock.ready() &&
-                 std::isfinite(currentPitch) &&
-                 fabsf(currentPitch) <= cfg::ARM_LIMIT_DEG) {
-        controller.reset();
-        navigator.reset();
-        armed = true;
-        Serial.println("ARMED (press button to disarm)");
-      } else {
-        Serial.println("ARM REFUSED: IMU fault or not steadily upright for 750 ms");
-      }
-    }
+  // A held-at-boot button is ignored until a stable release and new press.
+  // This function remains AFTER the latest IMU/deadline evaluation in loop().
+  if (!armButton.update(digitalRead(cfg::ARM_BUTTON) == LOW, millis())) return;
+  if (armed) {
+    disarm("button");
+  } else if (imuOkay && armingInterlock.ready() &&
+             std::isfinite(currentPitch) &&
+             fabsf(currentPitch) <= cfg::ARM_LIMIT_DEG) {
+    controller.reset();
+    navigator.reset();
+    armed = true;
+    Serial.println("ARMED (press button to disarm)");
+  } else {
+    Serial.println("ARM REFUSED: IMU fault or not steadily upright for 750 ms");
   }
 }
 
@@ -83,6 +75,7 @@ void setup() {
   Wire.setClock(400000);
   Wire.setTimeOut(8);
   Serial.println("GyroGuard ESP32 | SAFETY: motors DISABLED");
+  Serial.println("ARM: release button, wait for arm_ready=1, then press.");
   Serial.println("Hold chassis still, upright, with wheels off the ground.");
   imuOkay = imu.begin() && imu.calibrateGyro();
   if (!imuOkay) Serial.println("MPU6050 initialization/calibration failed");

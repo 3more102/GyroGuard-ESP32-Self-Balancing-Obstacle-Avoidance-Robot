@@ -2,6 +2,34 @@
 #include <cmath>
 
 namespace gyroguard {
+bool ArmButtonGuard::update(bool pressed, uint32_t nowMs) {
+  if (!initialized_) {
+    initialized_ = true;
+    rawPressed_ = stablePressed_ = pressed;
+    lastChangeMs_ = nowMs;
+    return false;  // Never synthesize a press on the first GPIO sample.
+  }
+  if (pressed != rawPressed_) {
+    rawPressed_ = pressed;
+    lastChangeMs_ = nowMs;
+  }
+  // Unsigned subtraction is safe across millis() rollover.
+  if (static_cast<uint32_t>(nowMs - lastChangeMs_) < 40u) return false;
+  if (rawPressed_ != stablePressed_) {
+    stablePressed_ = rawPressed_;
+    if (!stablePressed_) {
+      released_ = true;
+      return false;
+    }
+    if (released_) {
+      released_ = false;
+      return true;
+    }
+  }
+  if (!stablePressed_) released_ = true;
+  return false;
+}
+
 float pitchFromAccelXZ(float accelX, float accelZ) {
   return -std::atan2(accelX, accelZ) * 57.2957795f;
 }
