@@ -1,6 +1,6 @@
 # GyroGuard ESP32 — Self-Balancing Robot + Obstacle Avoidance
 
-**Status: V0.4 software prototype; NO hardware validation, not ready for autonomous deployment.**
+**Status: V0.5 software prototype; NO hardware validation, not ready for autonomous deployment.**
 
 ESP32-WROOM-32 prototype with an MPU6050 IMU, TB6612FNG dual motor driver, two DC geared motors and **one HC-SR04 ultrasonic sensor mounted on a servo**. The design separates the inner balance loop from a conservative navigation policy. Source includes host-runnable controller tests and wiring/commissioning documentation.
 
@@ -14,7 +14,7 @@ The diagram shows the **MPU6050 → ESP32 stabilization loop**, the **single HC-
 
 - 200 Hz polled balance loop with MPU6050 gyro offset calibration, complementary pitch filter and angle PD control with optional I term.
 - Manual arming interlock requires **750 ms of continuous healthy IMU readings** within ±6° pitch and ±12°/s pitch rate; invalid samples, excess movement and disarming clear readiness. Telemetry reports `arm_ready`. Gaps over 20 ms between IMU readings reset the 750 ms timer; the arm button is checked after the current control/deadline evaluation. This is an additional software safeguard, not a hardware emergency stop.
-- Two-direction TB6612FNG motor control at 20 kHz PWM, startup-off `STBY`, physical arm/disarm button, tilt/IMU/deadline cutoffs.
+- Two-direction TB6612FNG motor control at 20 kHz PWM, startup-off `STBY`, physical arm/disarm button, tilt/IMU/deadline cutoffs. **V0.5 now compile-locks motors off by default for sensor commissioning.**
 - One interrupt-timed HC-SR04 and PWM servo scanning front/left/right only when a near-front obstacle appears. The 200 Hz balance loop is never blocked waiting for servo movement or ECHO; stale readings invalidate navigation.
 - Conservative rule-based obstacle navigation: stop/turn toward the open side near an obstacle; slow in intermediate range; steer away from close side walls. **Default disabled**, as autonomous motion needs closed-loop wheel velocity feedback.
 - Host tests for controller sign, saturation, sensor failures, servo-scan sequencing, fresh/stale directional snapshots, obstacle turns and hysteresis. V0.3 adds rejection of physically implausible/corrupt sonar ranges and cancels an active turn when side sensing becomes invalid.
@@ -22,6 +22,15 @@ The diagram shows the **MPU6050 → ESP32 stabilization loop**, the **single HC-
 - Offline serial telemetry reporting (`tools/bench_report.py`) summarizes available pitch/range samples, IMU fault flags and disarm events for supervised bench commissioning.
 
 This is **not TinyML or an AI-trained model**. TinyML is a future optional phase, once real obstacle and motion data have been gathered and a baseline has been validated.
+
+## V0.5 sensor-only commissioning (motor output locked by default)
+
+- `platformio.ini` now sets **`GYROGUARD_MOTOR_ENABLE=0`** as well as `GYROGUARD_AUTONOMY=0`. This firmware still initializes the IMU and the single servo-mounted sonar, but **refuses arming and never calls `motors.set()`**. The TB6612 `STBY` remains low in normal operation.
+- First check stationary calibration, pitch sign, front/left/right distances, scan direction, power stability and serial telemetry with **motor VM physically disconnected**. The servo **can still move** and must be powered/contained appropriately.
+- Only after checking wiring and establishing a restrained wheels-off-ground rig, manually set `GYROGUARD_MOTOR_ENABLE=1`, rebuild and reflash to allow manual arming and motor polarity testing. Keep autonomy disabled.
+- Restoring `GYROGUARD_MOTOR_ENABLE=0` makes a sensor-only binary again. This is a *software lock*, not a physical emergency switch or a proven hardware interlock.
+
+See the staged [V0.5 bench test guide](docs/BENCH_PHASES.md) before any powered motor testing.
 
 ## Requirements
 
@@ -34,7 +43,7 @@ See [pinout and electrical warnings](docs/PINOUT.md), then [commissioning checkl
 ## Build and test
 
 1. Install VS Code + PlatformIO, open this directory.
-2. Upload: `pio run -t upload` (set correct serial port as needed).
+2. Upload: `pio run -t upload` (set correct serial port as needed). The default V0.5 build is **motor locked**.
 3. View telemetry: `pio device monitor -b 115200`.
 4. Run C++/Python host regression tests (Linux/macOS with g++, Python 3): `bash test/host/run_tests.sh`.
 5. After supervised, wheels-off-ground tests, capture serial diagnostics: `pio device monitor -b 115200 > bench.log` (stop with Ctrl+C). Summarize the log with `python3 tools/bench_report.py bench.log --json`. Use `--strict` to exit with code 2 for missing telemetry, IMU fault samples or recorded disarms. **A report with no recorded faults does not establish safe hardware operation.**
@@ -56,7 +65,7 @@ By default `GYROGUARD_AUTONOMY=0` in `platformio.ini`. `GYROGUARD_AUTONOMY=1` en
 - Navigation control now refuses non-finite drive and turn intent rather than propagating invalid values through the balance controller. The sonar ISR latches the first completed ECHO pulse to reject later spurious edges before the main loop consumes it.
 - **Important:** Hardware power cutoff, motor polarity, stable upright control and encoder-based velocity regulation still require verification before autonomous driving.
 
-## V0.4 manual-arm safety improvement
+## V0.4 manual-arm safety improvement (only when motor output is enabled)
 
 - Before pressing the arm button, hold the chassis still and upright until telemetry shows `arm_ready=1`.
 - A fall, IMU fault, excessive pitch rate or missed deadline clears the arming readiness timer. An early button press is refused; release and press again once ready.
