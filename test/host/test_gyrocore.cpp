@@ -5,6 +5,14 @@
 using namespace gyroguard;
 
 int main() {
+  // Gyro bias must not be estimated from samples with obvious motion/noise.
+  assert(gyroCalibrationStable(0.2f, 0.08f));
+  assert(gyroCalibrationStable(-1.0f, 1.0f));
+  assert(!gyroCalibrationStable(6.0f, 0.1f));
+  assert(!gyroCalibrationStable(0.1f, 2.5f));
+  assert(!gyroCalibrationStable(NAN, 0.1f));
+  assert(!gyroCalibrationStable(0.0f, INFINITY));
+  assert(!gyroCalibrationStable(0.0f, -0.1f));
   const float tenDegrees = 10.0f * 3.14159265f / 180.0f;
   assert(std::fabs(pitchFromAccelXZ(-std::sin(tenDegrees), std::cos(tenDegrees)) - 10.0f) < 0.001f);
   assert(std::fabs(pitchFromAccelXZ(+std::sin(tenDegrees), std::cos(tenDegrees)) + 10.0f) < 0.001f);

@@ -12,7 +12,7 @@ The diagram shows the **MPU6050 → ESP32 stabilization loop**, the **single HC-
 
 ## Implemented
 
-- 200 Hz polled balance loop with MPU6050 gyro offset calibration, complementary pitch filter and angle PD control with optional I term.
+- 200 Hz polled balance loop with MPU6050 gyro offset calibration (rejecting clearly moving/noisy startup samples), complementary pitch filter and angle PD control with optional I term.
 - Two-direction TB6612FNG motor control at 20 kHz PWM, startup-off `STBY`, physical arm/disarm button, tilt/IMU/deadline cutoffs.
 - One interrupt-timed HC-SR04 and PWM servo scanning front/left/right only when a near-front obstacle appears. The 200 Hz balance loop is never blocked waiting for servo movement or ECHO; stale readings invalidate navigation.
 - Conservative rule-based obstacle navigation: stop/turn toward the open side near an obstacle; slow in intermediate range; steer away from close side walls. **Default disabled**, as autonomous motion needs closed-loop wheel velocity feedback.
@@ -51,6 +51,10 @@ By default `GYROGUARD_AUTONOMY=0` in `platformio.ini`. `GYROGUARD_AUTONOMY=1` en
 - **ESP32 compile check:** `.github/workflows/firmware-build.yml` compiles classic ESP32 firmware with PlatformIO Core 6.1.18 and pinned `espressif32 @ 6.12.0`; it does **not** flash or test physical hardware.
 - Navigation control now refuses non-finite drive and turn intent rather than propagating invalid values through the balance controller. The sonar ISR latches the first completed ECHO pulse to reject later spurious edges before the main loop consumes it.
 - **Important:** Hardware power cutoff, motor polarity, stable upright control and encoder-based velocity regulation still require verification before autonomous driving.
+
+### Startup calibration safety
+
+Gyro bias calibration now rejects large rotation (>15 deg/s per sample), large average offset (>5 deg/s), and noisy sample sequences (>2 deg/s standard deviation). Failure keeps IMU initialization invalid and prevents arming. This is a software safeguard, **not a certified motion detector**: hold the chassis upright and still at power-up, and verify the thresholds on real sensor data before revising them.
 
 ## Roadmap
 

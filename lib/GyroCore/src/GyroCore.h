@@ -80,5 +80,8 @@ private:
 
 // With X forward, Z up, forward tilt increases pitch; gyro +Y matches.
 float pitchFromAccelXZ(float accelX, float accelZ);
+// Conservative rejection of suspect startup gyro bias calibration.
+// These checks do not prove that the chassis is motionless.
+bool gyroCalibrationStable(float meanDps, float stdDevDps);
 float clampFloat(float value, float low, float high);
 } // namespace gyroguard

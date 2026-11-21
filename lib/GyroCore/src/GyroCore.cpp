@@ -5,6 +5,12 @@ namespace gyroguard {
 float pitchFromAccelXZ(float accelX, float accelZ) {
   return -std::atan2(accelX, accelZ) * 57.2957795f;
 }
+bool gyroCalibrationStable(float meanDps, float stdDevDps) {
+  return std::isfinite(meanDps) && std::isfinite(stdDevDps) &&
+         std::fabs(meanDps) <= 5.0f && stdDevDps >= 0.0f &&
+         stdDevDps <= 2.0f;
+}
+
 float clampFloat(float value, float low, float high) {
   return value < low ? low : (value > high ? high : value);
 }

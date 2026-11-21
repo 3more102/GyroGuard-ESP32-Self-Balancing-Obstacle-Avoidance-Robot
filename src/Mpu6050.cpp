@@ -40,14 +40,25 @@ bool Mpu6050::readRaw(int16_t &ax, int16_t &az, int16_t &gy) {
 }
 bool Mpu6050::calibrateGyro(unsigned samples) {
   if (samples < 10) return false;
+  // Motors remain disabled during calibration. Reject obvious chassis motion
+  // instead of treating it as a sensor bias and later trying to balance on it.
   double sum = 0.0;
+  double sumSquares = 0.0;
   for (unsigned i = 0; i < samples; ++i) {
     int16_t ax, az, gy;
     if (!readRaw(ax, az, gy)) return false;
-    sum += static_cast<float>(gy) / 131.0f;
+    const float rate = static_cast<float>(gy) / 131.0f;
+    if (!std::isfinite(rate) || std::fabs(rate) > 15.0f) return false;
+    sum += rate;
+    sumSquares += static_cast<double>(rate) * rate;
     delay(4);
   }
-  gyroYBias_ = static_cast<float>(sum / samples);
+  const double mean = sum / samples;
+  const double variance = std::fmax(0.0, sumSquares / samples - mean * mean);
+  if (!gyroguard::gyroCalibrationStable(static_cast<float>(mean),
+                                        static_cast<float>(std::sqrt(variance))))
+    return false;
+  gyroYBias_ = static_cast<float>(mean);
   filtered_ = false;
   return true;
 }
