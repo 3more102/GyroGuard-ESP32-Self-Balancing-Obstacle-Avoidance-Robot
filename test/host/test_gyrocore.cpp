@@ -34,6 +34,35 @@ int main() {
   assert(u.left == 0.0f && u.right == 0.0f); // recovery after faults
   c.reset();
 
+  // Arming only after a sustained, upright, low-angular-rate IMU stream.
+  ArmingInterlock interlock(6.0f, 12.0f, 750u);
+  assert(!interlock.ready());
+  for (uint32_t t = 1000u; t < 1750u; t += 5u) {
+    assert(!interlock.observe(1.0f, 1.0f, true, t));
+  }
+  assert(interlock.observe(1.0f, 1.0f, true, 1750u));
+  assert(interlock.ready());
+  assert(!interlock.observe(1.0f, 13.0f, true, 1755u));
+  assert(!interlock.ready()); // excessive angular velocity invalidates hold
+  for (uint32_t t = 2000u; t < 2400u; t += 5u) {
+    assert(!interlock.observe(1.0f, 1.0f, true, t));
+  }
+  assert(!interlock.observe(1.0f, 1.0f, true, 2425u));
+  assert(!interlock.ready()); // >20 ms missed IMU samples resets hold
+  assert(!interlock.observe(NAN, 0.0f, true, 2430u));
+  assert(!interlock.observe(0.0f, 0.0f, false, 2435u));
+  assert(!interlock.observe(7.0f, 0.0f, true, 2440u));
+  interlock.reset();
+  for (uint32_t i = 0; i < 150u; ++i) {
+    assert(!interlock.observe(0.0f, 0.0f, true,
+                              0xFFFFFF00u + i * 5u));
+  }
+  assert(interlock.observe(0.0f, 0.0f, true,
+                            0xFFFFFF00u + 150u * 5u));
+  assert(interlock.ready()); // millis() rollover is handled
+  interlock.reset();
+  assert(!interlock.ready());
+
   ObstacleNavigator nav;
   auto intent = nav.update({{0, false}, {100, true}, {100, true}});
   assert(intent.drive == 0 && intent.turn == 0); // fail closed
@@ -122,5 +151,5 @@ int main() {
   assert(scan.readings(0x00000020u).front.valid);
   assert(!scan.readings(0x00000320u).front.valid);
 
-  std::cout << "PASS: balance/navigation, MPU6050 pitch, servo-scan and stale-data checks\n";
+  std::cout << "PASS: balance/navigation, stable arming, MPU6050 pitch, servo-scan and stale-data checks\n";
 }
