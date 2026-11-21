@@ -80,5 +80,13 @@ private:
 
 // With X forward, Z up, forward tilt increases pitch; gyro +Y matches.
 float pitchFromAccelXZ(float accelX, float accelZ);
+// Conservative, design-stage limits, not hardware-validated. Reject all-zero,
+// near-saturated and grossly implausible MPU6050 data before it reaches motors.
+// Units: accelerometer axes in g, gyro Y in degrees/second.
+bool imuSamplePlausible(float axG, float ayG, float azG, float gyroYDps);
+// Startup calibration is accepted only when the robot stayed reasonably still.
+// Inputs: accelerometer pitch span (degrees), mean and std dev of gyro Y (dps).
+bool gyroCalibrationStationary(float pitchSpanDeg, float gyroMeanDps,
+                               float gyroStdDps);
 float clampFloat(float value, float low, float high);
 } // namespace gyroguard
