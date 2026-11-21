@@ -30,6 +30,25 @@ private:
   float integral_ = 0.0f;
 };
 
+// Prevent motor arming until healthy IMU samples remain close to upright
+// AND have low angular rate for a continuous interval.
+class ArmingInterlock {
+public:
+  ArmingInterlock(float maxAbsPitchDeg, float maxAbsPitchRateDegPerSec,
+                  uint32_t stableHoldMs);
+  bool observe(float pitchDeg, float pitchRateDegPerSec, bool imuHealthy,
+               uint32_t nowMs);
+  void reset();
+  bool ready() const { return ready_; }
+private:
+  float maxAbsPitchDeg_;
+  float maxAbsPitchRateDegPerSec_;
+  uint32_t stableHoldMs_;
+  uint32_t stableSinceMs_ = 0;
+  bool tracking_ = false;
+  bool ready_ = false;
+};
+
 struct DistanceReading {
   float cm = 0.0f;
   bool valid = false;
