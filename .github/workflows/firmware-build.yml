@@ -19,7 +19,9 @@ jobs:
           python-version: '3.11'
       - name: Install pinned PlatformIO Core
         run: python -m pip install platformio==6.1.18
-      - name: Verify safety-default compilation flag
-        run: grep -Eq '^[[:space:]]*-D[[:space:]]+GYROGUARD_AUTONOMY=0([[:space:]]|$)' platformio.ini
+      - name: Verify safety-default compilation flags
+        run: |
+          grep -Eq '^[[:space:]]*-D[[:space:]]+GYROGUARD_AUTONOMY=0([[:space:]]|$)' platformio.ini
+          grep -Eq '^[[:space:]]*-D[[:space:]]+GYROGUARD_MOTOR_ENABLE=0([[:space:]]|$)' platformio.ini
       - name: Compile ESP32 firmware (no flashing)
         run: python -m platformio run -e esp32dev
