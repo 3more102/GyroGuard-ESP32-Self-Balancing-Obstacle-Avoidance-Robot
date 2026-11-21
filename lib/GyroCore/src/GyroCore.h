@@ -52,6 +52,22 @@ private:
   int turnDirection_ = 0; // -1 left, +1 right, 0 none
 };
 
+// Reject calibration unless the IMU remains upright and motionless.
+// A moving or tilted startup must never produce a trusted gyro bias.
+class GyroCalibrationGuard {
+public:
+  bool observe(float axG, float ayG, float azG,
+               float gxDps, float gyDps, float gzDps);
+  // Returns mean Y gyro rate as bias only after sufficient stable samples.
+  bool bias(float &gyroYBiasDps) const;
+private:
+  bool failed_ = false;
+  uint32_t samples_ = 0;
+  float referencePitchDeg_ = 0.0f;
+  float meanGyroY_ = 0.0f;
+  float squaredDiffGyroY_ = 0.0f;
+};
+
 // One physical ultrasonic sensor mounted on a PWM servo. Measurements are
 // directional snapshots: they are NOT simultaneous readings.
 enum class LookDirection : uint8_t { Front, Left, Right };
