@@ -31,6 +31,8 @@ This is **not TinyML or an AI-trained model**. TinyML is a future optional phase
 
 See [pinout and electrical warnings](docs/PINOUT.md), then [commissioning checklist](docs/COMMISSIONING.md).
 
+**Power/12 V battery decisions:** [power distribution and voltage limits](docs/POWER_WIRING.md). Record measured hardware safety results in the [V0.5 bench-validation record](docs/BENCH_VALIDATION_RECORD.md) before any floor or autonomous testing.
+
 ## Build and test
 
 1. Install VS Code + PlatformIO, open this directory.
