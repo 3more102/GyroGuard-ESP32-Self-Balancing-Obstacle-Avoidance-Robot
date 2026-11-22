@@ -1,5 +1,7 @@
 # ESP32-WROOM-32 DevKit wiring (one sonar + servo)
 
+**Start with the [verified power and battery wiring guide](POWER.md) before connecting a 2S or 12 V supply.**
+
 | Device | Signal | ESP32 GPIO |
 |---|---|---:|
 | MPU6050 | SDA / SCL | 21 / 22 |
